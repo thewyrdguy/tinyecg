@@ -23,11 +23,51 @@
 
 static void *data_handle = NULL;  // esp ble does not have "private data" pointer?
 
+static void gattc_profile_event_handler(esp_gattc_cb_event_t event,
+		esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *p_data)
+{
+	switch (event) {
+	case ESP_GATTC_REG_EVT:
+		ESP_LOGI(TAG, "REG_EVT on if %d", gattc_if);
+		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(
+			&(esp_ble_scan_params_t) {
+				.scan_type = BLE_SCAN_TYPE_ACTIVE,
+				.own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+				.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
+				.scan_interval = 0x50,
+				.scan_window = 0x30,
+				.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,
+			}));
+		break;
+	default:
+		ESP_LOGI(TAG, "EVT %d on if %d", event, gattc_if);
+		break;
+	}
+}
+
+struct gattc_profile_inst {
+	esp_gattc_cb_t gattc_cb;
+	uint16_t gattc_if;
+	uint16_t app_id;
+	uint16_t conn_id;
+	uint16_t service_start_handle;
+	uint16_t service_end_handle;
+	uint16_t char_handle;
+	esp_bd_addr_t remote_bda;
+};
+
+static struct gattc_profile_inst gl_profile_tab[PROFILE_NUM] = {
+	[PROFILE_A_APP_ID] = {
+		.gattc_cb = gattc_profile_event_handler,
+		.gattc_if = ESP_GATT_IF_NONE,
+	},
+};
+
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
 	uint8_t *adv_name = NULL;
 	uint8_t adv_name_len = 0;
-	//ESP_LOGD(TAG, "esp_gap_cb(%x, ...) called", event);
+	ESP_LOGI(TAG, "esp_gap_cb(%x, ...) called", event);
 	switch (event) {
 	case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
 		uint32_t duration = 30;
@@ -57,16 +97,16 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			// esp_ble_gattc_open(...);
 			break;
 		case ESP_GAP_SEARCH_INQ_CMPL_EVT:
-			ESP_LOGD(TAG, "ESP_GAP_SEARCH_INQ_CMPL_EVT");
+			ESP_LOGI(TAG, "ESP_GAP_SEARCH_INQ_CMPL_EVT");
 			break;
 		default:
-			ESP_LOGD(TAG, "Unhandled GAP search EVT %x",
+			ESP_LOGI(TAG, "Unhandled GAP search EVT %x",
 					scan_result->scan_rst.search_evt);
 		}
 		break;
 	case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
 		if (param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-			ESP_LOGD(TAG, "Scan completed");
+			ESP_LOGI(TAG, "Scan completed");
 		} else {
 			ESP_LOGE(TAG, "scan stop failed, error status = %x",
 					param->scan_stop_cmpl.status);
@@ -99,7 +139,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				param->pkt_data_length_cmpl.status);
 		break;
 	default:
-		ESP_LOGD(TAG, "Unhandled GAP EVT %x", event);
+		ESP_LOGI(TAG, "Unhandled GAP EVT %x", event);
 		break;
 	}
 }
@@ -107,7 +147,25 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		esp_ble_gattc_cb_param_t *param)
 {
-	ESP_LOGD(TAG, "We cannot have this now, we are not connecting!");
+	if (event == ESP_GATTC_REG_EVT) {
+		if (param->reg.status == ESP_GATT_OK) {
+			ESP_LOGI(TAG, "ESP_GATTC_REG_EVT app_id %04x if %d",
+					param->reg.app_id, gattc_if);
+			gl_profile_tab[param->reg.app_id].gattc_if = gattc_if;
+		} else {
+			ESP_LOGI(TAG, "reg app failed, app_id %04x, status %d",
+					param->reg.app_id,
+					param->reg.status);
+			return;
+		}
+	}
+	for (int i = 0; i < PROFILE_NUM; i++) {
+		if ((gattc_if == ESP_GATT_IF_NONE
+				|| gattc_if == gl_profile_tab[i].gattc_if)
+			&& gl_profile_tab[i].gattc_cb) {
+			gl_profile_tab[i].gattc_cb(event, gattc_if, param);
+		}
+	}
 }
 
 void ble_scanner_init(void *handle)
@@ -120,9 +178,9 @@ void ble_scanner_init(void *handle)
 		ret = nvs_flash_init();
 	}
 	ESP_ERROR_CHECK(ret);
-	//ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
-	esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-	ESP_ERROR_CHECK(esp_bt_controller_init(&bt_cfg));
+	ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
+	ESP_ERROR_CHECK(esp_bt_controller_init(
+		&(esp_bt_controller_config_t)BT_CONTROLLER_INIT_CONFIG_DEFAULT()));
 	ESP_ERROR_CHECK(esp_bt_controller_enable(ESP_BT_MODE_BLE));
 	ESP_ERROR_CHECK(esp_bluedroid_init());
 	ESP_ERROR_CHECK(esp_bluedroid_enable());
