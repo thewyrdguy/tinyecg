@@ -5,6 +5,7 @@
 #include <esp_timer.h>
 #include <lvgl.h>
 #include "lvgl_display.h"
+#include "ble_scanner.h"
 
 #define TAG "tinylcd"
 
@@ -50,4 +51,7 @@ void app_main(void)
 	ESP_LOGI(TAG, "Initializing display task");
 	// Run graphic interface task on core 1. Core 0 will be running bluetooth.
 	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);
+	ESP_LOGI(TAG, "Initializing BLE scanner");
+	ble_scanner_init(NULL);
+	ESP_LOGI(TAG, "app_main() has completed");
 }
