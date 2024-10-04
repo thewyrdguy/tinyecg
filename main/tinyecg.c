@@ -21,6 +21,7 @@ SemaphoreHandle_t displaySemaphore;
 
 static void displayTask(void *pvParameter)
 {
+	ESP_LOGI(TAG, "Display task is running on core %d", xPortGetCoreID());
 	displaySemaphore = xSemaphoreCreateMutex();
 	lv_display_t *disp = lvgl_display_init();
 	assert(disp != NULL);
@@ -53,5 +54,4 @@ void app_main(void)
 	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);
 	ESP_LOGI(TAG, "Initializing BLE scanner");
 	ble_scanner_init(NULL);
-	ESP_LOGI(TAG, "app_main() has completed");
 }
