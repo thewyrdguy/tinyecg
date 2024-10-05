@@ -22,32 +22,47 @@ static lv_color_t c_swap(lv_color_t o)
     };
 }
 
+lv_obj_t *welcome_label, *update_label;
+
 void display_welcome(lv_display_t* disp)
 {
     lv_obj_t *scr = lv_display_get_screen_active(disp);
-    lv_obj_t *label = lv_label_create(scr);
 
-    lv_label_set_text(label, "TheWyrdThings: tinyecg initializing");
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_color(label, c_swap(lv_color_hex(0xffffff)),
+    welcome_label = lv_label_create(scr);
+    update_label = lv_label_create(scr);
+
+    lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x070707)),
 				LV_PART_MAIN);
-    lv_obj_set_width(label, lv_pct(80));
-    lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000077)),
-			      LV_PART_MAIN);
-    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+    lv_obj_set_style_bg_color(welcome_label, c_swap(lv_color_hex(0x000077)),
+				LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(welcome_label, LV_OPA_100, LV_PART_MAIN);
+    lv_label_set_long_mode(welcome_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_text_static(welcome_label,
+		    "TheWyrdThings https://github.com/thewyrdguy");
+    lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
+    lv_obj_set_width(welcome_label, lv_pct(70));
+    lv_obj_set_height(welcome_label, lv_pct(15));
+    lv_obj_set_style_text_color(welcome_label, c_swap(lv_color_hex(0xffffff)),
+				LV_PART_MAIN);
+    lv_obj_align(welcome_label, LV_ALIGN_CENTER, 0, 0);
+
+    lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(update_label, c_swap(lv_color_hex(0xffffff)),
+				LV_PART_MAIN);
+    lv_obj_set_width(update_label, lv_pct(25));
+    lv_obj_set_height(update_label, lv_pct(15));
+    lv_obj_set_style_bg_color(update_label, c_swap(lv_color_hex(0x007700)),
+				LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(update_label, LV_OPA_100, LV_PART_MAIN);
+    lv_obj_set_style_text_align(update_label, LV_ALIGN_LEFT_MID,
+				LV_PART_MAIN);
+    lv_obj_align(update_label, LV_ALIGN_TOP_RIGHT, 0, 0);
 }
 
-void display_update(lv_display_t* disp, int samples)
+void display_update(int samples)
 {
-    lv_obj_t *scr = lv_display_get_screen_active(disp);
-    lv_obj_t *label = lv_label_create(scr);
-
-    lv_label_set_text_fmt(label, "TheWyrdThings: tinyecg update %d", samples);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_color(label, c_swap(lv_color_hex(0xffffff)),
-				LV_PART_MAIN);
-    lv_obj_set_width(label, lv_pct(80));
-    lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000077)),
-			      LV_PART_MAIN);
-    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clean(update_label);
+    lv_label_set_text_fmt(update_label, "%07d",
+		samples);
 }

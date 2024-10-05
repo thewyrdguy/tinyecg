@@ -59,7 +59,8 @@ static void displayTask(void *pvParameter)
 	while (1) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
-			display_update(disp, CONFIG_TINYECG_SPS / FPS);
+			//display_update(CONFIG_TINYECG_SPS / FPS);
+			display_update(xTaskGetTickCount());
 			lv_task_handler();
 			xSemaphoreGive(displaySemaphore);
 		}
