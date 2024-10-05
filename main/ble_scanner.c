@@ -177,6 +177,14 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		esp_ble_gattc_cb_param_t *p_data)
 {
+	static esp_ble_scan_params_t scan_params = {
+		.scan_type = BLE_SCAN_TYPE_PASSIVE,
+		.own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+		.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
+		.scan_interval = 0x50,
+		.scan_window = 0x30,
+		.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,
+	};
 	ESP_LOGI(TAG, "esp_gattc_cb event=%d if=%d app_id=%d", event, gattc_if,
 			p_data->reg.app_id);
 	// If multiple profiles, we would select the one and call its callback
@@ -196,15 +204,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					p_data->reg.app_id, p_data->reg.status);
 			return;
 		}
-		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(
-			&(esp_ble_scan_params_t) {
-				.scan_type = BLE_SCAN_TYPE_PASSIVE,
-				.own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-				.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
-				.scan_interval = 0x50,
-				.scan_window = 0x30,
-				.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,
-			}));
+		// This will send GAP indication that it can start scanning
+		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
 		break;
 	case ESP_GATTC_CONNECT_EVT:
 		ESP_LOGD(TAG, "ESP_GATTC_CONNECT_EVT conn_id %d, if %d",
@@ -224,9 +225,6 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		} else {
 			ESP_LOGE(TAG, "open failed, status %d", p_data->open.status);
 		}
-		break;
-	case ESP_GATTC_CLOSE_EVT:
-		ESP_LOGI(TAG, "close, reason %d", p_data->close.reason);
 		break;
 	case ESP_GATTC_DIS_SRVC_CMPL_EVT:
 		if (p_data->dis_srvc_cmpl.status == ESP_GATT_OK) {
@@ -377,7 +375,11 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		endpoint = NULL;
 		ESP_LOGI(TAG, "ESP_GATTC_DISCONNECT_EVT, reason = %d",
 				p_data->disconnect.reason);
-		esp_ble_gap_start_scanning(SCAN_DURATION);
+		// This will send GAP indication that it can start scanning
+		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
+		break;
+	case ESP_GATTC_CLOSE_EVT:
+		ESP_LOGI(TAG, "close, reason %d", p_data->close.reason);
 		break;
 	default:
 		ESP_LOGE(TAG, "Unhandled gattc EVT %d on if %d", event, gattc_if);
@@ -388,7 +390,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 void ble_scanner_init(void *handle)
 {
 	data_handle = handle;
-	ESP_LOGI(TAG, "Initializing, currently on core %d", xPortGetCoreID());
+	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
 		ESP_ERROR_CHECK(nvs_flash_erase());
