@@ -198,7 +198,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(
 			&(esp_ble_scan_params_t) {
-				.scan_type = BLE_SCAN_TYPE_ACTIVE,
+				.scan_type = BLE_SCAN_TYPE_PASSIVE,
 				.own_addr_type = BLE_ADDR_TYPE_PUBLIC,
 				.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
 				.scan_interval = 0x50,
