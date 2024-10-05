@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 void display_welcome(lv_display_t* lvgl_display);
-void display_update(lv_display_t* lvgl_display, long int millis);
+void display_update(lv_display_t* lvgl_display, int samples);
 
 #ifdef __cplusplus
 }

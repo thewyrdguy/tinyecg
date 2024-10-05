@@ -1,3 +1,20 @@
+menu "TinyECG configurable options"
+
+	choice
+		prompt "Frames per second"
+		default TINYECG_FPS_25
+		config TINYECG_FPS_25
+			bool "25 FPS"
+		config TINYECG_FPS_30
+			bool "30 FPS"
+	endchoice
+
+	config TINYECG_SPS
+		int "Samplig rate of the ECG signal. Must match sensor rate."
+		default 150
+
+endmenu
+
 # Kconfig file for Lilligo T3-AMOLED module demo
 
 menu "Hardware Environment (PINS, screen, etc.)"

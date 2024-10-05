@@ -37,12 +37,12 @@ void display_welcome(lv_display_t* disp)
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 }
 
-void display_update(lv_display_t* disp, long int millis)
+void display_update(lv_display_t* disp, int samples)
 {
     lv_obj_t *scr = lv_display_get_screen_active(disp);
     lv_obj_t *label = lv_label_create(scr);
 
-    lv_label_set_text_fmt(label, "TheWyrdThings: tinyecg update at %ld", millis);
+    lv_label_set_text_fmt(label, "TheWyrdThings: tinyecg update %d", samples);
     lv_obj_set_style_text_font(label, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(label, c_swap(lv_color_hex(0xffffff)),
 				LV_PART_MAIN);

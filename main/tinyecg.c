@@ -37,12 +37,29 @@ static void displayTask(void *pvParameter)
 
 	display_welcome(disp);
 
-	const TickType_t xFrequency = pdMS_TO_TICKS(2000);
+#if defined(CONFIG_TINYECG_FPS_25)
+# define FPS 25
+#elif defined(CONFIG_TINYECG_FPS_30)
+# define FPS 30
+#else
+# error "Must define FPS, either 25 or 30"
+#endif
+
+#if (configTICK_RATE_HZ % FPS)
+# error "TICK_RATE_HZ must be a multiple of FPS"
+#endif
+#if (SPS % FPS)
+# error "SPS must be a multiple of FPS"
+#endif
+
+	const TickType_t xFrequency = configTICK_RATE_HZ / FPS;
+	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
+			FPS, CONFIG_TINYECG_SPS, xFrequency);
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
-			display_update(disp, pdTICKS_TO_MS(xTaskGetTickCount()));
+			display_update(disp, CONFIG_TINYECG_SPS / FPS);
 			lv_task_handler();
 			xSemaphoreGive(displaySemaphore);
 		}
