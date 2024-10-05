@@ -6,10 +6,9 @@
 #include <lvgl.h>
 #include "lvgl_display.h"
 #include "ble_scanner.h"
+#include "display.h"
 
 #define TAG "tinylcd"
-
-extern void example_lvgl_demo_ui(lv_display_t *disp);  // TODO remove this
 
 #define LV_TICK_PERIOD_MS 1
 
@@ -36,11 +35,14 @@ static void displayTask(void *pvParameter)
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer,
 		LV_TICK_PERIOD_MS * 1000));
 
-	example_lvgl_demo_ui(disp);
+	display_welcome(disp);
 
+	const TickType_t xFrequency = pdMS_TO_TICKS(2000);
+	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
-		vTaskDelay(pdMS_TO_TICKS(10));
-		if (pdTRUE == xSemaphoreTake(displaySemaphore, portMAX_DELAY)) {
+		vTaskDelayUntil(&xLastWakeTime, xFrequency);
+		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
+			display_update(disp, pdTICKS_TO_MS(xTaskGetTickCount()));
 			lv_task_handler();
 			xSemaphoreGive(displaySemaphore);
 		}
