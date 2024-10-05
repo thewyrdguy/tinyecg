@@ -85,24 +85,26 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *)param;
 		switch (scan_result->scan_rst.search_evt) {
 		case ESP_GAP_SEARCH_INQ_RES_EVT:
-			esp_log_buffer_hex(TAG, scan_result->scan_rst.bda, 6);
-			ESP_LOGI(TAG, "Adv Data Len %d, Scan Response Len %d",
+			ESP_LOG_BUFFER_HEX_LEVEL(TAG, scan_result->scan_rst.bda, 6,
+				       	ESP_LOG_DEBUG);
+			ESP_LOGD(TAG, "Adv Data Len %d, Scan Response Len %d",
 					scan_result->scan_rst.adv_data_len,
 					scan_result->scan_rst.scan_rsp_len);
 			adv_name = esp_ble_resolve_adv_data(
 					scan_result->scan_rst.ble_adv,
 					ESP_BLE_AD_TYPE_NAME_CMPL,
 					&adv_name_len);
-			ESP_LOGI(TAG, "Device Name Len %d", adv_name_len);
-			esp_log_buffer_char(TAG, adv_name, adv_name_len);
+			ESP_LOGD(TAG, "Device Name Len %d", adv_name_len);
+			ESP_LOG_BUFFER_CHAR_LEVEL(TAG, adv_name, adv_name_len,
+					ESP_LOG_DEBUG);
 			adv_srv = esp_ble_resolve_adv_data(
 					scan_result->scan_rst.ble_adv,
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
 					&adv_srv_len);
-			ESP_LOGI(TAG, "Device Srv Len %d", adv_srv_len);
+			ESP_LOGD(TAG, "Device Srv Len %d", adv_srv_len);
 			if (adv_srv_len == sizeof(uint16_t)) {
 				adv_srv_uuid = adv_srv[0] + (adv_srv[1] << 8);
-				ESP_LOGI(TAG, "Device Srv uuid %04x", adv_srv_uuid);
+				ESP_LOGD(TAG, "Device Srv uuid %04x", adv_srv_uuid);
 			}
 			if (adv_srv_uuid == hrm_desc.srv_uuid) {
 				endpoint = &hrm_desc;
@@ -114,7 +116,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			}
 			if (endpoint) {
 				ESP_LOGI(TAG, "Found %s",
-					       	endpoint->name ? endpoint->name : "HRM");
+				       	endpoint->name ? endpoint->name : "HRM");
 				if (!connect) {
 					connect = true;
 					ESP_LOGI(TAG, "Connecting");
@@ -144,7 +146,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		break;
 	case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
 		if (param->adv_stop_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-			ESP_LOGI(TAG, "Stop adv successfully");
+			ESP_LOGD(TAG, "Stop adv successfully");
 		} else {
 			ESP_LOGE(TAG, "adv stop failed, error status = %x",
 				       	param->adv_stop_cmpl.status);
@@ -162,7 +164,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				param->update_conn_params.timeout);
 		break;
 	case ESP_GAP_BLE_SET_PKT_LENGTH_COMPLETE_EVT:
-		ESP_LOGI(TAG, "packet length updated: rx = %d, "
+		ESP_LOGD(TAG, "packet length updated: rx = %d, "
 				"tx = %d, status = %d",
 				param->pkt_data_length_cmpl.params.rx_len,
 				param->pkt_data_length_cmpl.params.tx_len,
@@ -214,8 +216,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		memcpy(gattc_profile.remote_bda, p_data->connect.remote_bda,
 				sizeof(esp_bd_addr_t));
 		ESP_LOGI(TAG, "REMOTE BDA:");
-		esp_log_buffer_hex(TAG, gattc_profile.remote_bda,
-				sizeof(esp_bd_addr_t));
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, gattc_profile.remote_bda,
+				sizeof(esp_bd_addr_t), ESP_LOG_INFO);
 		ESP_ERROR_CHECK(esp_ble_gattc_send_mtu_req(gattc_if,
 				p_data->connect.conn_id));
 		break;
@@ -352,7 +354,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		} else {
 			ESP_LOGD(TAG, "ESP_GATTC_NOTIFY_EVT, receive indicate value:");
 		}
-		esp_log_buffer_hex(TAG, p_data->notify.value, p_data->notify.value_len);
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, p_data->notify.value,
+				p_data->notify.value_len, ESP_LOG_DEBUG);
 		break;
 	case ESP_GATTC_WRITE_DESCR_EVT:
 		if (p_data->write.status != ESP_GATT_OK) {
@@ -364,8 +367,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		break;
 	case ESP_GATTC_SRVC_CHG_EVT:
 		ESP_LOGI(TAG, "ESP_GATTC_SRVC_CHG_EVT, bd_addr:");
-		esp_log_buffer_hex(TAG, p_data->srvc_chg.remote_bda,  // copy it first?
-				sizeof(esp_bd_addr_t));
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, p_data->srvc_chg.remote_bda,
+				sizeof(esp_bd_addr_t), ESP_LOG_INFO);
 		break;
 	case ESP_GATTC_WRITE_CHAR_EVT:
 		ESP_LOGD(TAG, "write char status = %x", p_data->write.status);
