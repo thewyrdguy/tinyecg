@@ -21,28 +21,8 @@
 #define PROFILE_APP_ID 0
 #define LOCAL_MTU 500
 
-static void *data_handle = NULL;  // esp ble does not have "private data" pointer?
-
-struct _endpoint {
-	char *name;
-	uint16_t srv_uuid;
-	uint16_t nchar_uuid;
-	uint16_t wchar_uuid;
-};
-
-struct _endpoint hrm_desc = {
-	.srv_uuid = 0x180D,
-	.nchar_uuid = 0x2A37,
-};
-
-struct _endpoint pc80b_desc = {
-	.name = "PC80B-BLE",
-	.srv_uuid = 0xfff0,
-	.nchar_uuid = 0xfff1,
-	.wchar_uuid = 0xfff2,
-};
-
-struct _endpoint *endpoint = NULL;
+periph_t *phead = NULL;
+periph_t *periph = NULL;
 
 // We can have multiple profiles, with their individual callbacks. But we have only 1.
 
@@ -102,21 +82,27 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
 					&adv_srv_len);
 			ESP_LOGD(TAG, "Device Srv Len %d", adv_srv_len);
-			if (adv_srv_len == sizeof(uint16_t)) {
-				adv_srv_uuid = adv_srv[0] + (adv_srv[1] << 8);
-				ESP_LOGD(TAG, "Device Srv uuid %04x", adv_srv_uuid);
-			}
-			if (adv_srv_uuid == hrm_desc.srv_uuid) {
-				endpoint = &hrm_desc;
-			}
-			if ((strlen(pc80b_desc.name) == adv_name_len)
-				&& (strncmp((char *)adv_name, pc80b_desc.name,
+			for (periph = phead; periph; periph = periph->next) {
+				if (periph->name
+				    && (strlen(periph->name) == adv_name_len)
+				    && (strncmp((char *)adv_name, periph->name,
 						adv_name_len) == 0)) {
-				endpoint = &pc80b_desc;
+					break;
+				}
+				if (adv_srv_len != sizeof(uint16_t)) {
+					continue;
+				}
+				adv_srv_uuid = adv_srv[0] + (adv_srv[1] << 8);
+				ESP_LOGD(TAG, "Device Srv uuid %04x",
+						adv_srv_uuid);
+				if (adv_srv_uuid == periph->srv_uuid) {
+					break;
+				}
 			}
-			if (endpoint) {
+			if (periph) {
 				ESP_LOGI(TAG, "Found %s",
-				       	endpoint->name ? endpoint->name : "HRM");
+					adv_name_len ? (char*)adv_name
+							: "noname");
 				if (!connect) {
 					connect = true;
 					ESP_LOGI(TAG, "Connecting");
@@ -236,7 +222,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					p_data->dis_srvc_cmpl.conn_id,
 					&(esp_bt_uuid_t){
 						.len = ESP_UUID_LEN_16,
-						.uuid = {.uuid16 = endpoint->srv_uuid,},
+						.uuid = {.uuid16 = periph->srv_uuid,},
 					});
 		} else {
 			ESP_LOGE(TAG, "discover service failed, status %d",
@@ -265,7 +251,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 				p_data->search_res.end_handle,
 				p_data->search_res.srvc_id.inst_id);
 		 if (p_data->search_res.srvc_id.uuid.len == ESP_UUID_LEN_16
-		  && p_data->search_res.srvc_id.uuid.uuid.uuid16 == endpoint->srv_uuid) {
+		  && p_data->search_res.srvc_id.uuid.uuid.uuid16 == periph->srv_uuid) {
 			ESP_LOGI(TAG, "Service uuid discoverd");
 			gattc_profile.service_start_handle =
 				p_data->search_res.start_handle;
@@ -322,7 +308,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 						(esp_bt_uuid_t){
 							.len = ESP_UUID_LEN_16,
 							.uuid = {.uuid16 =
-								endpoint->nchar_uuid,},
+								periph->nchar_uuid,},
 						},
 						char_elem_result,
 						&count) != ESP_GATT_OK) {
@@ -375,7 +361,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		break;
 	case ESP_GATTC_DISCONNECT_EVT:
 		connect = false;
-		endpoint = NULL;
+		periph = NULL;
 		ESP_LOGI(TAG, "ESP_GATTC_DISCONNECT_EVT, reason = %d",
 				p_data->disconnect.reason);
 		// This will send GAP indication that it can start scanning
@@ -390,9 +376,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	}
 }
 
-void ble_scanner_init(void *handle)
+void ble_scanner_init(periph_t *periphs)
 {
-	data_handle = handle;
+	phead = periphs;
 	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

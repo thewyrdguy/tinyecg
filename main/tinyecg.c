@@ -12,6 +12,22 @@
 
 #define LV_TICK_PERIOD_MS 1
 
+periph_t hrm_desc = {
+	.next = NULL,
+	.srv_uuid = 0x180D,
+	.nchar_uuid = 0x2A37,
+};
+
+periph_t pc80b_desc = {
+	.next = &hrm_desc,
+	.name = "PC80B-BLE",
+	.srv_uuid = 0xfff0,
+	.nchar_uuid = 0xfff1,
+	.wchar_uuid = 0xfff2,
+};
+
+periph_t *periphs = &pc80b_desc;
+
 static void lv_tick_task(void *arg) {
 	lv_tick_inc(LV_TICK_PERIOD_MS);
 }
@@ -73,5 +89,5 @@ void app_main(void)
 	// Run graphic interface task on core 1. Core 0 will be running bluetooth.
 	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);
 	ESP_LOGI(TAG, "Initializing BLE scanner");
-	ble_scanner_init(NULL);
+	ble_scanner_init(periphs);
 }
