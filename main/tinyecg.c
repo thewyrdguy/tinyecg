@@ -7,6 +7,7 @@
 #include "lvgl_display.h"
 #include "ble_scanner.h"
 #include "display.h"
+#include "data.h"
 
 #define TAG "tinylcd"
 
@@ -85,6 +86,8 @@ static void displayTask(void *pvParameter)
 
 void app_main(void)
 {
+	ESP_LOGI(TAG, "Initializing data stash");
+	data_init();
 	ESP_LOGI(TAG, "Initializing display task");
 	// Run graphic interface task on core 1. Core 0 will be running bluetooth.
 	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);

@@ -8,12 +8,13 @@
 #include <esp_gatt_defs.h>
 #include <esp_bt_main.h>
 #include <esp_gatt_common_api.h>
-#include "nvs.h"
-#include "nvs_flash.h"
+#include <nvs.h>
+#include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
 #include <esp_log.h>
 
 #include "ble_scanner.h"
+#include "data.h"
 
 #define TAG "ble_scanner"
 
@@ -77,6 +78,18 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			ESP_LOGD(TAG, "Device Name Len %d", adv_name_len);
 			ESP_LOG_BUFFER_CHAR_LEVEL(TAG, adv_name, adv_name_len,
 					ESP_LOG_DEBUG);
+#if 1
+			if (adv_name_len) {
+				report_periph((char*)adv_name);
+			} else {
+				char buf[14];
+				for (int i = 0; i < 6; i++)
+					sprintf(buf+(i*2), "%02x",
+						scan_result->scan_rst.bda[i]);
+				buf[12] = '\0';
+				report_periph(buf);
+			}
+#endif
 			adv_srv = esp_ble_resolve_adv_data(
 					scan_result->scan_rst.ble_adv,
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
