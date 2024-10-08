@@ -28,13 +28,23 @@ lv_obj_t *welcome_label, *update_label;
 void display_welcome(lv_display_t* disp)
 {
 	lv_obj_t *scr = lv_display_get_screen_active(disp);
-
-	welcome_label = lv_label_create(scr);
-	update_label = lv_label_create(scr);
-
-	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x070707)),
+	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
 				LV_PART_MAIN);
 
+	lv_obj_t *frame = lv_obj_create(scr);
+	lv_obj_set_align(frame, LV_ALIGN_LEFT_MID);
+	lv_obj_set_size(frame, 460, 240);
+	lv_obj_set_style_bg_color(frame, c_swap(lv_color_hex(0x070707)),
+				LV_PART_MAIN);
+	lv_obj_set_style_bg_opa(frame, LV_OPA_0, LV_PART_MAIN);
+	lv_obj_set_style_border_color(frame, c_swap(lv_color_hex(0x770000)),
+			LV_PART_MAIN);
+	lv_obj_set_style_border_opa(frame, LV_OPA_100, LV_PART_MAIN);
+	lv_obj_set_style_border_width(frame, 2, LV_PART_MAIN);
+	lv_obj_set_style_radius(frame, 5, LV_PART_MAIN);
+	// lv_obj_add_event_cb(frame, frame_event_cb, LV_EVENT_DRAW_MAIN, NULL);
+
+	welcome_label = lv_label_create(scr);
 	lv_obj_set_style_bg_color(welcome_label, c_swap(lv_color_hex(0x000077)),
 				LV_PART_MAIN);
 	lv_obj_set_style_bg_opa(welcome_label, LV_OPA_100, LV_PART_MAIN);
@@ -44,13 +54,14 @@ void display_welcome(lv_display_t* disp)
 	lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_width(welcome_label, lv_pct(70));
 	lv_obj_set_height(welcome_label, lv_pct(15));
-	lv_obj_set_style_text_color(welcome_label, c_swap(lv_color_hex(0xffffff)),
-				LV_PART_MAIN);
+	lv_obj_set_style_text_color(welcome_label,
+			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
 	lv_obj_align(welcome_label, LV_ALIGN_CENTER, 0, 0);
 
+	update_label = lv_label_create(scr);
 	lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(update_label, c_swap(lv_color_hex(0xffffff)),
-				LV_PART_MAIN);
+	lv_obj_set_style_text_color(update_label,
+			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
 	lv_obj_set_width(update_label, lv_pct(45));
 	lv_obj_set_height(update_label, lv_pct(15));
 	lv_obj_set_style_bg_color(update_label, c_swap(lv_color_hex(0x007700)),
