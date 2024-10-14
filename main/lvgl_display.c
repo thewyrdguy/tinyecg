@@ -151,3 +151,12 @@ lv_display_t *lvgl_display_init(void)
 	lv_disp_set_rotation(disp, LV_DISPLAY_ROTATION_90);
 	return disp;
 }
+
+void lvgl_display_shut(lv_display_t *disp)
+{
+	esp_lcd_panel_handle_t panel_handle =
+		(esp_lcd_panel_handle_t)lv_display_get_user_data(disp);
+	ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, false));
+	ESP_ERROR_CHECK(gpio_set_level(CONFIG_HWE_DISPLAY_PWR,
+				!CONFIG_HWE_DISPLAY_PWR_ON_LEVEL));
+}

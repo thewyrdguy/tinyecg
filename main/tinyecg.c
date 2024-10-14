@@ -2,6 +2,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
+#include <esp_sleep.h>
 #include <esp_timer.h>
 #include <lvgl.h>
 #include "lvgl_display.h"
@@ -34,10 +35,13 @@ static void lv_tick_task(void *arg) {
 }
 
 SemaphoreHandle_t displaySemaphore;
+SemaphoreHandle_t taskSemaphore;
+volatile bool run_display = true;
 
 static void displayTask(void *pvParameter)
 {
 	ESP_LOGI(TAG, "Display task is running on core %d", xPortGetCoreID());
+	assert(xSemaphoreTake(taskSemaphore, portMAX_DELAY) == pdTRUE);
 	displaySemaphore = xSemaphoreCreateMutex();
 	lv_display_t *disp = lvgl_display_init();
 	assert(disp != NULL);
@@ -73,7 +77,7 @@ static void displayTask(void *pvParameter)
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
 			FPS, CONFIG_TINYECG_SPS, xFrequency);
 	TickType_t xLastWakeTime = xTaskGetTickCount();
-	while (1) {
+	while (run_display) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
 			//display_update(CONFIG_TINYECG_SPS / FPS);
@@ -82,15 +86,25 @@ static void displayTask(void *pvParameter)
 			xSemaphoreGive(displaySemaphore);
 		}
 	}
+	lvgl_display_shut(disp);
+	xSemaphoreGive(taskSemaphore);
+	vTaskDelete(NULL);
 }
 
 void app_main(void)
 {
+	taskSemaphore = xSemaphoreCreateBinary();
+	xSemaphoreGive(taskSemaphore);
 	ESP_LOGI(TAG, "Initializing data stash");
 	data_init();
 	ESP_LOGI(TAG, "Initializing display task");
 	// Run graphic interface task on core 1. Core 0 will be running bluetooth.
 	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);
-	ESP_LOGI(TAG, "Initializing BLE scanner");
-	ble_scanner_init(periphs);
+	ESP_LOGI(TAG, "Running BLE scanner");
+	ble_scanner_run(periphs);
+	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
+	run_display = false;
+	xSemaphoreTake(taskSemaphore, portMAX_DELAY);
+	ESP_LOGI(TAG, "Display task completed, shut down");
+	esp_deep_sleep_start();
 }

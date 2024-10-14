@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 lv_display_t *lvgl_display_init(void);
+void lvgl_display_shut(lv_display_t *disp);
 
 #ifdef __cplusplus
 }

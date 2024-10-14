@@ -18,14 +18,14 @@
 
 #define TAG "ble_scanner"
 
-#define SCAN_DURATION 30
+#define SCAN_DURATION 50
 #define PROFILE_APP_ID 0
 #define LOCAL_MTU 500
 
+SemaphoreHandle_t btSemaphore;
+
 periph_t *phead = NULL;
 periph_t *periph = NULL;
-
-// We can have multiple profiles, with their individual callbacks. But we have only 1.
 
 struct gattc_profile_inst {
 	uint16_t gattc_if;
@@ -63,10 +63,12 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		}
 		break;
 	case ESP_GAP_BLE_SCAN_RESULT_EVT:
-		esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *)param;
+		esp_ble_gap_cb_param_t *scan_result =
+			(esp_ble_gap_cb_param_t *)param;
 		switch (scan_result->scan_rst.search_evt) {
 		case ESP_GAP_SEARCH_INQ_RES_EVT:
-			ESP_LOG_BUFFER_HEX_LEVEL(TAG, scan_result->scan_rst.bda, 6,
+			ESP_LOG_BUFFER_HEX_LEVEL(TAG,
+					scan_result->scan_rst.bda, 6,
 				       	ESP_LOG_DEBUG);
 			ESP_LOGD(TAG, "Adv Data Len %d, Scan Response Len %d",
 					scan_result->scan_rst.adv_data_len,
@@ -128,7 +130,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			}
 			break;
 		case ESP_GAP_SEARCH_INQ_CMPL_EVT:
-			ESP_LOGD(TAG, "ESP_GAP_SEARCH_INQ_CMPL_EVT");
+			ESP_LOGD(TAG, "Scan completed");
+			if (!connect) {
+				ESP_LOGI(TAG, "Found nothing");
+				xSemaphoreGive(btSemaphore);
+			}
 			break;
 		default:
 			ESP_LOGE(TAG, "Unhandled GAP search EVT %x",
@@ -186,8 +192,6 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		.scan_window = 0x30,
 		.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,
 	};
-	ESP_LOGI(TAG, "esp_gattc_cb event=%d if=%d app_id=%d", event, gattc_if,
-			p_data->reg.app_id);
 	// If multiple profiles, we would select the one and call its callback
 	switch (event) {
 	case ESP_GATTC_REG_EVT:
@@ -383,15 +387,19 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	case ESP_GATTC_CLOSE_EVT:
 		ESP_LOGI(TAG, "close, reason %d", p_data->close.reason);
 		break;
+	case ESP_GATTC_UNREG_EVT:
+		ESP_LOGI(TAG, "Unregister event");
+		break;
 	default:
 		ESP_LOGE(TAG, "Unhandled gattc EVT %d on if %d", event, gattc_if);
 		break;
 	}
 }
 
-void ble_scanner_init(periph_t *periphs)
+void ble_scanner_run(periph_t *periphs)
 {
 	phead = periphs;
+	btSemaphore = xSemaphoreCreateBinary();
 	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -410,4 +418,13 @@ void ble_scanner_init(periph_t *periphs)
 	ESP_ERROR_CHECK(esp_ble_gattc_app_register(PROFILE_APP_ID));
 	ESP_ERROR_CHECK(esp_ble_gatt_set_local_mtu(LOCAL_MTU));
 	ESP_LOGI(TAG, "Initialization done");
+
+	xSemaphoreTake(btSemaphore, portMAX_DELAY);
+
+	ESP_LOGI(TAG, "Nothing found during scan, powering down");
+	esp_bluedroid_disable();
+	esp_bluedroid_deinit();
+	esp_bt_controller_disable();
+	esp_bt_controller_deinit();
+	nvs_flash_deinit();
 }

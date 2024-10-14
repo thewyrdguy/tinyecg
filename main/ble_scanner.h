@@ -17,7 +17,7 @@ typedef struct _periph {
 	uint16_t nbatt_uuid;
 } periph_t;
 
-void ble_scanner_init(periph_t *periphs);
+void ble_scanner_run(periph_t *periphs);
 
 #ifdef __cplusplus
 }
