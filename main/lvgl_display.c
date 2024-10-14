@@ -49,6 +49,7 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area,
 {
 	esp_lcd_panel_handle_t panel_handle =
 		(esp_lcd_panel_handle_t)lv_display_get_user_data(disp_drv);
+	lv_draw_sw_rgb565_swap(px_map, lv_area_get_size(area));
 	ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel_handle,
 			area->x1, area->y1,
 			area->x2 + 1, area->y2 + 1,

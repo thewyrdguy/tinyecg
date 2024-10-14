@@ -2,7 +2,12 @@
 #include "data.h"
 
 /* Create a pseudo lv_color_t that will produce byte-swapped r5g6b5 */
-static lv_color_t c_swap(lv_color_t o)
+static inline lv_color_t c_swap(lv_color_t o)
+#if 1
+{
+	return o;
+}
+#else
 {
 	/*
 	   RRRrr... GGGggg.. BBbbb...
@@ -22,6 +27,7 @@ static lv_color_t c_swap(lv_color_t o)
 	.blue =  ((o.red << 3)   & 0b11000000) | ((o.green >> 2) & 0b00111000)
 	};
 }
+#endif
 
 lv_obj_t *welcome_label, *update_label;
 
