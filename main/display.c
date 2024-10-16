@@ -38,7 +38,9 @@ static inline lv_color_t c_swap(lv_color_t o)
  * 			 LV_COORD_MAX, LV_TXT_FLAG_EXPAND);
  */
 
-lv_obj_t *welcome_label, *update_label, *batt_label, *hr_label;
+lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
+	*batt_label, *hr_label;
+lv_obj_t *lframe, *rframe;
 
 lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
 		int32_t w, int32_t h, lv_color_t bcolour)
@@ -74,43 +76,17 @@ lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
 	return label;
 }
 
-void display_welcome(lv_display_t* disp)
+void display_grid(lv_display_t* disp)
 {
 	lv_obj_t *scr = lv_display_get_screen_active(disp);
+	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
 				LV_PART_MAIN);
 
-	lv_obj_t *lframe = mkframe(scr, LV_ALIGN_LEFT_MID, 460, lv_pct(100),
+	lframe = mkframe(scr, LV_ALIGN_LEFT_MID, 460, lv_pct(100),
 			c_swap(lv_color_hex(0x770000)));
-	lv_obj_t *rframe = mkframe(scr, LV_ALIGN_RIGHT_MID, 70, lv_pct(100),
+	rframe = mkframe(scr, LV_ALIGN_RIGHT_MID, 70, lv_pct(100),
 			c_swap(lv_color_hex(0x007700)));
-
-	welcome_label = lv_label_create(lframe);
-	lv_obj_set_style_bg_color(welcome_label, c_swap(lv_color_hex(0x000077)),
-				LV_PART_MAIN);
-	lv_obj_set_style_bg_opa(welcome_label, LV_OPA_100, LV_PART_MAIN);
-	lv_label_set_long_mode(welcome_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
-	lv_label_set_text_static(welcome_label,
-			"TheWyrdThings https://github.com/thewyrdguy");
-	lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_width(welcome_label, lv_pct(70));
-	lv_obj_set_height(welcome_label, lv_pct(15));
-	lv_obj_set_style_text_color(welcome_label,
-			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
-	lv_obj_align(welcome_label, LV_ALIGN_CENTER, 0, 0);
-
-	update_label = lv_label_create(lframe);
-	lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(update_label,
-			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
-	lv_obj_set_width(update_label, lv_pct(75));
-	lv_obj_set_height(update_label, lv_pct(15));
-	lv_obj_set_style_bg_color(update_label, c_swap(lv_color_hex(0x007700)),
-				LV_PART_MAIN);
-	lv_obj_set_style_bg_opa(update_label, LV_OPA_100, LV_PART_MAIN);
-	lv_obj_set_style_text_align(update_label, LV_ALIGN_LEFT_MID,
-				LV_PART_MAIN);
-	lv_obj_align(update_label, LV_ALIGN_TOP_RIGHT, 0, 0);
 
 	batt_label = mklabel(rframe, NULL);
 	hr_label = mklabel(rframe, batt_label);
@@ -127,15 +103,95 @@ void display_welcome(lv_display_t* disp)
 	lv_label_set_text_static(label_4, "4");
 	lv_label_set_text_static(label_5, "5");
 	lv_label_set_text_static(label_6, "6");
-
 }
 
-void display_update(int samples)
+static void display_welcome(lv_display_t* disp)
 {
-	data_stash_t stash;
+	lv_obj_t *scr = lv_display_get_screen_active(disp);
+	lv_obj_clean(scr);
+	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x00003F)),
+				LV_PART_MAIN);
+	welcome_label = lv_label_create(scr);
+	lv_obj_set_width(welcome_label, lv_pct(80));
+	lv_obj_set_height(welcome_label, lv_pct(15));
+	lv_obj_align(welcome_label, LV_ALIGN_CENTER, 0, 0);
+	lv_label_set_long_mode(welcome_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+	lv_label_set_text_static(welcome_label,
+			"TheWyrdThings https://github.com/thewyrdguy");
+	lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
+	lv_obj_set_style_text_color(welcome_label,
+			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
 
-	get_stash(&stash);
+	scanning_label = lv_label_create(scr);
+	lv_obj_set_width(scanning_label, lv_pct(30));
+	lv_obj_set_height(scanning_label, lv_pct(15));
+	lv_obj_align(scanning_label, LV_ALIGN_TOP_LEFT, 0, 0);
+	lv_obj_set_style_text_font(scanning_label, &lv_font_montserrat_28, 0);
+	lv_obj_set_style_text_color(scanning_label,
+			c_swap(lv_color_hex(0x7F7F7F)), LV_PART_MAIN);
+	lv_obj_set_style_text_align(scanning_label, LV_ALIGN_RIGHT_MID,
+				LV_PART_MAIN);
+	lv_label_set_text_static(scanning_label, "Scanning:");
 
-	lv_obj_clean(update_label);
-	lv_label_set_text(update_label, stash.name);
+	update_label = lv_label_create(scr);
+	lv_obj_set_width(update_label, lv_pct(50));
+	lv_obj_set_height(update_label, lv_pct(15));
+	lv_obj_align_to(update_label, scanning_label, LV_ALIGN_OUT_RIGHT_MID,
+				0, 0);
+	lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
+	lv_obj_set_style_text_color(update_label,
+			c_swap(lv_color_hex(0x7F7F7F)), LV_PART_MAIN);
+	lv_obj_set_style_text_align(update_label, LV_ALIGN_LEFT_MID,
+				LV_PART_MAIN);
+}
+
+static void display_stop(lv_display_t* disp)
+{
+	lv_obj_t *scr = lv_display_get_screen_active(disp);
+	lv_obj_clean(scr);
+	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
+				LV_PART_MAIN);
+	goodbye_label = lv_label_create(scr);
+	lv_obj_set_width(goodbye_label, lv_pct(80));
+	lv_obj_set_height(goodbye_label, lv_pct(15));
+	lv_obj_align(goodbye_label, LV_ALIGN_CENTER, 0, 0);
+	lv_label_set_long_mode(goodbye_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+	lv_label_set_text_static(goodbye_label,
+			"Did not find anything, shutting down to save power.");
+	lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
+	lv_obj_set_style_text_color(goodbye_label,
+			c_swap(lv_color_hex(0xff0000)), LV_PART_MAIN);
+}
+
+static data_stash_t old_stash = {};
+
+void display_update(lv_display_t* disp)
+{
+	data_stash_t new_stash;
+
+	get_stash(&new_stash);
+
+	if (old_stash.state != new_stash.state) switch (new_stash.state) {
+	case state_scanning:
+		display_welcome(disp);
+		break;
+	case state_receiving:
+		display_grid(disp);
+		break;
+	case state_goingdown:
+		display_stop(disp);
+		break;
+	default:
+		break;
+	}
+
+	switch (new_stash.state) {
+	case state_scanning:
+		lv_obj_clean(update_label);
+		lv_label_set_text(update_label, new_stash.name);
+		break;
+	default:
+		break;
+	}
+	old_stash = new_stash;
 }

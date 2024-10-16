@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-void display_welcome(lv_display_t* lvgl_display);
-void display_update(int samples);
+void display_init(lv_display_t* lvgl_display);
+void display_update(lv_display_t* lvgl_display);
 
 #ifdef __cplusplus
 }

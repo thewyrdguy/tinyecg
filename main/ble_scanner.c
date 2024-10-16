@@ -52,6 +52,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 	ESP_LOGD(TAG, "esp_gap_cb(%x, ...) called", event);
 	switch (event) {
 	case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
+		report_state(state_scanning);
 		esp_ble_gap_start_scanning(SCAN_DURATION);
 		break;
 	case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
@@ -184,7 +185,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		esp_ble_gattc_cb_param_t *p_data)
 {
-	static esp_ble_scan_params_t scan_params = {
+	static const esp_ble_scan_params_t scan_params = {
 		.scan_type = BLE_SCAN_TYPE_PASSIVE,
 		.own_addr_type = BLE_ADDR_TYPE_PUBLIC,
 		.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
@@ -342,6 +343,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					       	  & ESP_GATT_CHAR_PROP_BIT_NOTIFY);
 			}
 			free(char_elem_result);
+			report_state(state_receiving);
 		}
 		break;
 	case ESP_GATTC_REG_FOR_NOTIFY_EVT:

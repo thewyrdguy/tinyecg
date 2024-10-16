@@ -14,6 +14,21 @@
 
 #define LV_TICK_PERIOD_MS 1
 
+#if defined(CONFIG_TINYECG_FPS_25)
+# define FPS 25
+#elif defined(CONFIG_TINYECG_FPS_30)
+# define FPS 30
+#else
+# error "Must define FPS, either 25 or 30"
+#endif
+
+#if (configTICK_RATE_HZ % FPS)
+# error "TICK_RATE_HZ must be a multiple of FPS"
+#endif
+#if (SPS % FPS)
+# error "SPS must be a multiple of FPS"
+#endif
+
 periph_t hrm_desc = {
 	.next = NULL,
 	.srv_uuid = 0x180D,
@@ -56,23 +71,6 @@ static void displayTask(void *pvParameter)
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer,
 		LV_TICK_PERIOD_MS * 1000));
 
-	display_welcome(disp);
-
-#if defined(CONFIG_TINYECG_FPS_25)
-# define FPS 25
-#elif defined(CONFIG_TINYECG_FPS_30)
-# define FPS 30
-#else
-# error "Must define FPS, either 25 or 30"
-#endif
-
-#if (configTICK_RATE_HZ % FPS)
-# error "TICK_RATE_HZ must be a multiple of FPS"
-#endif
-#if (SPS % FPS)
-# error "SPS must be a multiple of FPS"
-#endif
-
 	const TickType_t xFrequency = configTICK_RATE_HZ / FPS;
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
 			FPS, CONFIG_TINYECG_SPS, xFrequency);
@@ -80,8 +78,7 @@ static void displayTask(void *pvParameter)
 	while (run_display) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
-			//display_update(CONFIG_TINYECG_SPS / FPS);
-			display_update(xTaskGetTickCount());
+			display_update(disp);
 			lv_task_handler();
 			xSemaphoreGive(displaySemaphore);
 		}
@@ -103,6 +100,8 @@ void app_main(void)
 	ESP_LOGI(TAG, "Running BLE scanner");
 	ble_scanner_run(periphs);
 	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
+	report_state(state_goingdown);
+	vTaskDelay(pdMS_TO_TICKS(5000));
 	run_display = false;
 	xSemaphoreTake(taskSemaphore, portMAX_DELAY);
 	ESP_LOGI(TAG, "Display task completed, shut down");
