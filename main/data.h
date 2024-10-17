@@ -18,7 +18,7 @@ typedef struct {
 } data_stash_t;
 
 void report_state(state_t state);
-void report_periph(char const *name);
+void report_periph(char const *name, size_t len);
 void get_stash(data_stash_t *newstash);
 void data_init(void);
 

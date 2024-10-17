@@ -10,7 +10,7 @@
 #include "display.h"
 #include "data.h"
 
-#define TAG "tinylcd"
+#define TAG "tinyecg"
 
 #define LV_TICK_PERIOD_MS 1
 

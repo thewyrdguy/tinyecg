@@ -18,10 +18,13 @@ void report_state(state_t st)
 	}
 }
 
-void report_periph(char const *name)
+void report_periph(char const *name, size_t len)
 {
+	size_t to_copy = (len < sizeof(stash.name))
+			? len : sizeof(stash.name) - 1;
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
-		strncpy(stash.name, name, sizeof(stash.name));
+		strncpy(stash.name, name, to_copy);
+		stash.name[to_copy] = '\0';
 		xSemaphoreGive(dataSemaphore);
 	}
 }
