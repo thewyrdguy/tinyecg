@@ -29,6 +29,15 @@
 # error "SPS must be a multiple of FPS"
 #endif
 
+#if 0
+periph_t ring_desc = {
+	.next = NULL,
+	.name = "R02_79B5",
+	.srv_uuid = 0xca9e,  // or 0x5dc7  -- they are both uuid128!
+	.nchar_uuid = 0x2A37, // don't know
+};
+#endif
+
 periph_t hrm_desc = {
 	.next = NULL,
 	.srv_uuid = 0x180D,

@@ -237,11 +237,16 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					p_data->dis_srvc_cmpl.conn_id);
 			esp_ble_gattc_search_service(gattc_if,
 					p_data->dis_srvc_cmpl.conn_id,
+#if 1
+					NULL
+#else
 					&(esp_bt_uuid_t){
 						.len = ESP_UUID_LEN_16,
 						.uuid = {.uuid16 =
 							periph->srv_uuid,},
-					});
+					}
+#endif
+					);
 		} else {
 			ESP_LOGE(TAG, "discover service failed, status %d",
 					p_data->dis_srvc_cmpl.status);
@@ -260,7 +265,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		break;
 	case ESP_GATTC_SEARCH_RES_EVT:
-		ESP_LOGI(TAG, "SEARCH RES: conn_id = %x is primary service %d",
+		ESP_LOGI(TAG, "SEARCH RES: %04x (%hu) conn_id = %x primary %d",
+				p_data->search_res.srvc_id.uuid.uuid.uuid16,
+				p_data->search_res.srvc_id.uuid.len,
 				p_data->search_res.conn_id,
 				p_data->search_res.is_primary);
 		ESP_LOGI(TAG, "start handle %d end handle %d "
@@ -268,10 +275,11 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 				p_data->search_res.start_handle,
 				p_data->search_res.end_handle,
 				p_data->search_res.srvc_id.inst_id);
-		 if (p_data->search_res.srvc_id.uuid.len == ESP_UUID_LEN_16
+		if (p_data->search_res.srvc_id.uuid.len == ESP_UUID_LEN_16
 		  && p_data->search_res.srvc_id.uuid.uuid.uuid16 ==
 							periph->srv_uuid) {
-			ESP_LOGI(TAG, "Service uuid discoverd");
+			ESP_LOGI(TAG, "Service uuid %04x discoverd",
+					periph->srv_uuid);
 			gattc_profile.service_start_handle =
 				p_data->search_res.start_handle;
 			gattc_profile.service_end_handle =
@@ -368,6 +376,12 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					gattc_profile.char_handle);
 			}
 			free(char_elem_result);
+		} else {
+			ESP_LOGI(TAG, "Search complete w/o success, close");
+			if (esp_ble_gattc_close(gattc_if,
+				p_data->search_cmpl.conn_id) != ESP_GATT_OK) {
+				ESP_LOGE(TAG, "gattc_close error");
+			}
 		}
 		break;
 	case ESP_GATTC_REG_FOR_NOTIFY_EVT:
