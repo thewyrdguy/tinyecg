@@ -81,17 +81,18 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			ESP_LOGD(TAG, "Device Name Len %d", adv_name_len);
 			ESP_LOG_BUFFER_CHAR_LEVEL(TAG, adv_name, adv_name_len,
 					ESP_LOG_DEBUG);
-#if 1
+
 			if (adv_name_len) {
 				report_periph((char*)adv_name, adv_name_len);
 			} else {
-				char buf[14];
-				for (int i = 0; i < 6; i++)
-					sprintf(buf+(i*2), "%02x",
+				char buf[ESP_BD_ADDR_LEN * 3 + 1];
+				for (int i = 0; i < ESP_BD_ADDR_LEN; i++)
+					sprintf(buf+(i*3), "%02x:",
 						scan_result->scan_rst.bda[i]);
-				report_periph(buf, 12);
+				buf[sizeof(buf) - 2] = '\0';
+				report_periph(buf, sizeof(buf) - 1);
 			}
-#endif
+
 			adv_srv = esp_ble_resolve_adv_data(
 					scan_result->scan_rst.ble_adv,
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
@@ -265,13 +266,31 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		break;
 	case ESP_GATTC_SEARCH_RES_EVT:
-		ESP_LOGI(TAG, "SEARCH RES: %04x (%hu) conn_id = %x primary %d",
-				p_data->search_res.srvc_id.uuid.uuid.uuid16,
-				p_data->search_res.srvc_id.uuid.len,
-				p_data->search_res.conn_id,
-				p_data->search_res.is_primary);
-		ESP_LOGI(TAG, "start handle %d end handle %d "
+		switch (p_data->search_res.srvc_id.uuid.len) {
+		case ESP_UUID_LEN_16:
+			ESP_LOGI(TAG, "uuid16: %04x",
+				p_data->search_res.srvc_id.uuid.uuid.uuid16);
+			break;
+		case ESP_UUID_LEN_32:
+			ESP_LOGI(TAG, "uuid32: %08lx",
+				p_data->search_res.srvc_id.uuid.uuid.uuid32);
+			break;
+		case ESP_UUID_LEN_128:
+			char buf[ESP_UUID_LEN_128 * 2 + 1];
+			for (int i = 0; i < ESP_UUID_LEN_128; i++) {
+				sprintf(buf+(i*2), "%02x",
+					p_data->search_res.srvc_id.uuid
+						.uuid.uuid128[i]);
+			}
+			ESP_LOGI(TAG, "uuid128: %s", buf);
+			break;
+		default:
+			break;
+		}
+		ESP_LOGI(TAG, "conn %x primary %d start hdl %d end hdl %d "
 				"current handle value %d",
+				p_data->search_res.conn_id,
+				p_data->search_res.is_primary,
 				p_data->search_res.start_handle,
 				p_data->search_res.end_handle,
 				p_data->search_res.srvc_id.inst_id);

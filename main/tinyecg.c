@@ -30,6 +30,13 @@
 #endif
 
 #if 0
+/*
+ * Found R02_79B5
+ * uuid16: 1801
+ * uuid16: 180a
+ * uuid128: 9ecadc240ee5a9e093f3a3b5f0ff406e
+ * uuid128: c75d2a01e36526af474e11d728f75bde
+ */
 periph_t ring_desc = {
 	.next = NULL,
 	.name = "R02_79B5",

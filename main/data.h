@@ -14,7 +14,7 @@ typedef enum {
 
 typedef struct {
 	state_t state;
-	char name[16];
+	char name[32];
 } data_stash_t;
 
 void report_state(state_t state);
