@@ -7,6 +7,8 @@ extern "C" {
 
 typedef struct _periph {
 	void (*callback)(uint8_t *data, size_t datalen);
+	void (*start)(void);
+	void (*stop)(void);
 	const char *name;
 	uint16_t srv_uuid;
 	uint16_t nchar_uuid;

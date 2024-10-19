@@ -476,11 +476,18 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		break;
 	case ESP_GATTC_NOTIFY_EVT:
-		ESP_LOGI(TAG, "Receive %s value (%d):",
+		ESP_LOGD(TAG, "Receive %s (%d bytes)",
 			(p_data->notify.is_notify) ? "notify" : "indicate",
 			p_data->notify.value_len);
-		ESP_LOG_BUFFER_HEX_LEVEL(TAG, p_data->notify.value,
-				p_data->notify.value_len, ESP_LOG_INFO);
+		if (periph) {
+			periph->callback(p_data->notify.value,
+					p_data->notify.value_len);
+		} else {
+			ESP_LOGE(TAG, "Receive %s (%d bytes) but no periph",
+				(p_data->notify.is_notify)
+						? "notify" : "indicate",
+				p_data->notify.value_len);
+		}
 		break;
 	case ESP_GATTC_WRITE_DESCR_EVT:
 		if (p_data->write.status != ESP_GATT_OK) {
@@ -489,20 +496,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			break;
 		}
 		ESP_LOGI(TAG, "Write descr success");
-#if 0
-		uint8_t write_char_data[35];
-		for (int i = 0; i < sizeof(write_char_data); ++i) {
-			write_char_data[i] = i % 256;
-		}
-		esp_ble_gattc_write_char(
-			gattc_if,
-			gattc_profile.conn_id,
-			gattc_profile.char_handle,
-			sizeof(write_char_data),
-			write_char_data,
-			ESP_GATT_WRITE_TYPE_RSP,
-			ESP_GATT_AUTH_REQ_NONE);
-#endif
+		if (periph && periph->start) periph->start();
 		break;
 	case ESP_GATTC_SRVC_CHG_EVT:
 		ESP_LOGI(TAG, "ESP_GATTC_SRVC_CHG_EVT, bd_addr:");
@@ -517,6 +511,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		periph = NULL;
 		ESP_LOGI(TAG, "ESP_GATTC_DISCONNECT_EVT, reason = %d",
 				p_data->disconnect.reason);
+		if (periph && periph->stop) periph->stop();
 		// This will send GAP indication that it can start scanning
 		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
 		break;

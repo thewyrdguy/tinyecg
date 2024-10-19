@@ -8,6 +8,7 @@
 
 static void hrm_receive(uint8_t *data, size_t datalen)
 {
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_INFO);
 }
 
 static const periph_t hrm_desc = {
