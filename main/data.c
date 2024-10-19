@@ -10,6 +10,14 @@ SemaphoreHandle_t dataSemaphore;
 
 data_stash_t stash;
 
+void report_hr(int hr)
+{
+	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
+		stash.hr = hr;
+		xSemaphoreGive(dataSemaphore);
+	}
+}
+
 void report_state(state_t st)
 {
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {

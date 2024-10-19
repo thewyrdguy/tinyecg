@@ -97,7 +97,7 @@ void display_grid(lv_display_t* disp)
 	lv_obj_t *label_6 = mklabel(rframe, label_5);
 
 	lv_label_set_text_static(batt_label, "55%");
-	lv_label_set_text_static(hr_label, "255");
+	lv_label_set_text_static(hr_label, "---");
 	lv_label_set_text_static(label_2, "2");
 	lv_label_set_text_static(label_3, "3");
 	lv_label_set_text_static(label_4, "4");
@@ -191,6 +191,8 @@ void display_update(lv_display_t* disp)
 		lv_label_set_text(update_label, new_stash.name);
 		break;
 	default:
+		if (new_stash.hr != old_stash.hr)
+			lv_label_set_text_fmt(hr_label, "%d", new_stash.hr);
 		break;
 	}
 	old_stash = new_stash;

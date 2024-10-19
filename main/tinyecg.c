@@ -9,6 +9,7 @@
 #include "ble_runner.h"
 #include "display.h"
 #include "data.h"
+#include "sampling.h"
 
 #include "hrm.h"
 #include "pc80b.h"
@@ -16,21 +17,6 @@
 #define TAG "tinyecg"
 
 #define LV_TICK_PERIOD_MS 1
-
-#if defined(CONFIG_TINYECG_FPS_25)
-# define FPS 25
-#elif defined(CONFIG_TINYECG_FPS_30)
-# define FPS 30
-#else
-# error "Must define FPS, either 25 or 30"
-#endif
-
-#if (configTICK_RATE_HZ % FPS)
-# error "TICK_RATE_HZ must be a multiple of FPS"
-#endif
-#if (SPS % FPS)
-# error "SPS must be a multiple of FPS"
-#endif
 
 #if 0
 /*
@@ -84,7 +70,7 @@ static void displayTask(void *pvParameter)
 
 	const TickType_t xFrequency = configTICK_RATE_HZ / FPS;
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
-			FPS, CONFIG_TINYECG_SPS, xFrequency);
+			FPS, SPS, xFrequency);
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (run_display) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);

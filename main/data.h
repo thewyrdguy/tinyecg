@@ -15,10 +15,12 @@ typedef enum {
 typedef struct {
 	state_t state;
 	char name[32];
+	int hr;
 } data_stash_t;
 
 void report_state(state_t state);
 void report_periph(char const *name, size_t len);
+void report_hr(int hr);
 void get_stash(data_stash_t *newstash);
 void data_init(void);
 
