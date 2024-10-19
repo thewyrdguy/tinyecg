@@ -191,8 +191,9 @@ void display_update(lv_display_t* disp)
 		lv_label_set_text(update_label, new_stash.name);
 		break;
 	default:
-		if (new_stash.hr != old_stash.hr)
-			lv_label_set_text_fmt(hr_label, "%d", new_stash.hr);
+		if (new_stash.heartrate != old_stash.heartrate)
+			lv_label_set_text_fmt(hr_label, "%d",
+					new_stash.heartrate);
 		break;
 	}
 	old_stash = new_stash;

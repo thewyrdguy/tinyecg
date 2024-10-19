@@ -86,7 +86,8 @@ static void hrm_receive(uint8_t *data, size_t datalen)
 
 	int num = SBUFSIZE;
 	makeSamples(rris, rri, &num, samples);
-	report_hr(hr);
+	ESP_LOGI(TAG, "Synthesised %d samples", num);
+	report_jumbo(&(data_stash_t){.heartrate = hr}, num, samples);
 }
 
 static const periph_t hrm_desc = {
