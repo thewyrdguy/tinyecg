@@ -13,10 +13,10 @@
 #include <freertos/FreeRTOS.h>
 #include <esp_log.h>
 
-#include "ble_scanner.h"
+#include "ble_runner.h"
 #include "data.h"
 
-#define TAG "ble_scanner"
+#define TAG "ble_runner"
 
 #define SCAN_DURATION 50
 #define PROFILE_APP_ID 0
@@ -24,8 +24,8 @@
 
 SemaphoreHandle_t btSemaphore;
 
-periph_t *phead = NULL;
-periph_t *periph = NULL;
+periph_listelem_t *phead = NULL;
+const periph_t *periph = NULL;
 
 struct gattc_profile_inst {
 	uint16_t gattc_if;
@@ -98,7 +98,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
 					&adv_srv_len);
 			ESP_LOGD(TAG, "Device Srv Len %d", adv_srv_len);
-			for (periph = phead; periph; periph = periph->next) {
+			for (const periph_listelem_t *pptr = phead; pptr;
+						pptr = pptr->next) {
+				periph = pptr->periph;
 				if (periph->name
 				    && (strlen(periph->name) == adv_name_len)
 				    && (strncmp((char *)adv_name, periph->name,
@@ -106,6 +108,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 					break;
 				}
 				if (adv_srv_len != sizeof(uint16_t)) {
+					periph = NULL;
 					continue;
 				}
 				adv_srv_uuid = adv_srv[0] + (adv_srv[1] << 8);
@@ -114,6 +117,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				if (adv_srv_uuid == periph->srv_uuid) {
 					break;
 				}
+				periph = NULL;
 			}
 			if (periph) {
 				ESP_LOGI(TAG, "Found %s",
@@ -528,9 +532,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	}
 }
 
-void ble_scanner_run(periph_t *periphs)
+void ble_runner(periph_listelem_t *pptrs)
 {
-	phead = periphs;
+	phead = pptrs;
 	btSemaphore = xSemaphoreCreateBinary();
 	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
 	esp_err_t ret = nvs_flash_init();

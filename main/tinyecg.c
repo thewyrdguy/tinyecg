@@ -6,9 +6,12 @@
 #include <esp_timer.h>
 #include <lvgl.h>
 #include "lvgl_display.h"
-#include "ble_scanner.h"
+#include "ble_runner.h"
 #include "display.h"
 #include "data.h"
+
+#include "hrm.h"
+#include "pc80b.h"
 
 #define TAG "tinyecg"
 
@@ -38,28 +41,20 @@
  * uuid128: c75d2a01e36526af474e11d728f75bde
  */
 periph_t ring_desc = {
-	.next = NULL,
 	.name = "R02_79B5",
 	.srv_uuid = 0xca9e,  // or 0x5dc7  -- they are both uuid128!
 	.nchar_uuid = 0x2A37, // don't know
 };
 #endif
 
-periph_t hrm_desc = {
-	.next = NULL,
-	.srv_uuid = 0x180D,
-	.nchar_uuid = 0x2A37,
+typedef const periph_t *(*init_func_t)(void);
+static init_func_t inits[] = {
+	hrm_init,
+	pc80b_init,
+	NULL,
 };
 
-periph_t pc80b_desc = {
-	.next = &hrm_desc,
-	.name = "PC80B-BLE",
-	.srv_uuid = 0xfff0,
-	.nchar_uuid = 0xfff1,
-	.wchar_uuid = 0xfff2,
-};
-
-periph_t *periphs = &pc80b_desc;
+static periph_listelem_t *periphs = NULL;
 
 static void lv_tick_task(void *arg) {
 	lv_tick_inc(LV_TICK_PERIOD_MS);
@@ -108,13 +103,22 @@ void app_main(void)
 {
 	taskSemaphore = xSemaphoreCreateBinary();
 	xSemaphoreGive(taskSemaphore);
+	ESP_LOGI(TAG, "Initializing plugins");
+	for (init_func_t *funcp = inits; *funcp; funcp++) {
+		const periph_t *desc = (*funcp)();
+		periph_listelem_t *new = malloc(sizeof(periph_listelem_t));
+		assert(new != NULL);
+		new->next = periphs;
+		new->periph = desc;
+		periphs = new;
+	}
 	ESP_LOGI(TAG, "Initializing data stash");
 	data_init();
 	ESP_LOGI(TAG, "Initializing display task");
 	// Run graphic interface task on core 1. Core 0 will be running bluetooth.
 	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);
 	ESP_LOGI(TAG, "Running BLE scanner");
-	ble_scanner_run(periphs);
+	ble_runner(periphs);
 	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
 	report_state(state_goingdown);
 	vTaskDelay(pdMS_TO_TICKS(5000));
