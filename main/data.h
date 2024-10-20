@@ -70,7 +70,7 @@ void report_periph(char const *name, size_t len);
 void report_jumbo(data_stash_t *ds, int num, int8_t *samples);
 void report_rbatt(uint8_t rbatt);
 void report_lbatt(uint8_t lbatt);
-void get_stash(data_stash_t *newstash);
+void get_stash(data_stash_t *newstash, size_t num, int8_t *samples);
 void data_init(void);
 
 #ifdef __cplusplus

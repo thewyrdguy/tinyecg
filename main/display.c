@@ -1,4 +1,5 @@
 #include <lvgl.h>
+#include "sampling.h"
 #include "data.h"
 
 /* Create a pseudo lv_color_t that will produce byte-swapped r5g6b5 */
@@ -163,13 +164,15 @@ static void display_stop(lv_display_t* disp)
 			c_swap(lv_color_hex(0xff0000)), LV_PART_MAIN);
 }
 
+#define FWIDTH (SPS / FPS)
 static data_stash_t old_stash = {};
 
 void display_update(lv_display_t* disp)
 {
 	data_stash_t new_stash;
+	int8_t samples[FWIDTH];
 
-	get_stash(&new_stash);
+	get_stash(&new_stash, FWIDTH, samples);
 
 	if (old_stash.state != new_stash.state) switch (new_stash.state) {
 	case state_scanning:

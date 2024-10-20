@@ -4,7 +4,10 @@
 #include <freertos/task.h>
 #include <esp_log.h>
 
+#include "sampling.h"
 #include "data.h"
+
+#define TAG "data"
 
 SemaphoreHandle_t dataSemaphore;
 
@@ -80,9 +83,49 @@ void report_periph(char const *name, size_t len)
 	}
 }
 
-void get_stash(data_stash_t *newstash)
+static int repeated_underrun = 0;  // To minimise noise in the log
+
+void get_stash(data_stash_t *newstash, size_t num, int8_t *samples_p)
 {
+	size_t to_copy, to_repeat, buf_left;
+
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
+		if (num < amount) {
+			to_copy = num;
+			to_repeat = 0;
+			if (repeated_underrun) {
+				ESP_LOGI(TAG, "Underrun happened %d times",
+						repeated_underrun);
+			}
+			repeated_underrun = 0;
+			stash.underrun = false;
+		} else {
+			to_copy = amount;
+			to_repeat = num - amount;
+			if (!repeated_underrun) {
+				ESP_LOGI(TAG, "Underrun, have %d samples",
+						to_copy);
+			}
+			repeated_underrun++;
+			stash.underrun = true;
+		}
+		buf_left = BUFSIZE - rdp;
+		if (buf_left >= to_copy) {
+			memcpy(samples_p, samples + rdp, to_copy);
+		} else {
+			memcpy(samples_p, samples + rdp, buf_left);
+			memcpy(samples_p + buf_left, samples,
+					to_copy - buf_left);
+		}
+		if (to_repeat) {
+			memset(samples_p + to_copy,
+					samples[(rdp + to_copy - 1) % num],
+					to_repeat);
+		}
+		rdp = (rdp + to_copy) % BUFSIZE;
+		amount -= to_copy;
+
+		// Do this after maybe updating underrun field
 		memcpy(newstash, &stash, sizeof(stash));
 		xSemaphoreGive(dataSemaphore);
 	}
