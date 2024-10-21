@@ -39,11 +39,11 @@ static inline lv_color_t c_swap(lv_color_t o)
  * 			 LV_COORD_MAX, LV_TXT_FLAG_EXPAND);
  */
 
-lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
+static lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
 	*batt_label, *hr_label;
-lv_obj_t *lframe, *rframe;
+static lv_obj_t *lframe, *rframe;
 
-lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
+static lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
 		int32_t w, int32_t h, lv_color_t bcolour)
 {
 	lv_obj_t *frame = lv_obj_create(parent);
@@ -58,7 +58,7 @@ lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
 	return frame;
 }
 
-lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
+static lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
 {
 	lv_obj_t *label = lv_label_create(parent);
 	lv_obj_set_size(label, lv_pct(100), 30);
@@ -77,9 +77,8 @@ lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
 	return label;
 }
 
-void display_grid(lv_display_t* disp)
+static void display_grid(lv_obj_t *scr)
 {
-	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
 				LV_PART_MAIN);
@@ -106,9 +105,8 @@ void display_grid(lv_display_t* disp)
 	lv_label_set_text_static(label_6, "6");
 }
 
-static void display_welcome(lv_display_t* disp)
+static void display_welcome(lv_obj_t *scr)
 {
-	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x00003F)),
 				LV_PART_MAIN);
@@ -146,9 +144,8 @@ static void display_welcome(lv_display_t* disp)
 				LV_PART_MAIN);
 }
 
-static void display_stop(lv_display_t* disp)
+static void display_stop(lv_obj_t *scr)
 {
-	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
 				LV_PART_MAIN);
@@ -169,6 +166,7 @@ static data_stash_t old_stash = {};
 
 void display_update(lv_display_t* disp)
 {
+	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	data_stash_t new_stash;
 	int8_t samples[FWIDTH];
 
@@ -176,13 +174,13 @@ void display_update(lv_display_t* disp)
 
 	if (old_stash.state != new_stash.state) switch (new_stash.state) {
 	case state_scanning:
-		display_welcome(disp);
+		display_welcome(scr);
 		break;
 	case state_receiving:
-		display_grid(disp);
+		display_grid(scr);
 		break;
 	case state_goingdown:
-		display_stop(disp);
+		display_stop(scr);
 		break;
 	default:
 		break;
