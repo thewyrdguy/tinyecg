@@ -7,6 +7,8 @@ extern "C" {
 
 lv_display_t *lvgl_display_init(void);
 void lvgl_display_shut(lv_display_t *disp);
+void lvgl_display_push(lv_display_t *disp_drv, const lv_area_t *area,
+		uint8_t *px_map);
 
 #ifdef __cplusplus
 }

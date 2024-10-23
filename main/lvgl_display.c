@@ -44,7 +44,7 @@ static bool IRAM_ATTR color_trans_done(esp_lcd_panel_io_handle_t panel_io, esp_l
 	return false; 
 }
 
-static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area,
+void lvgl_display_push(lv_display_t *disp_drv, const lv_area_t *area,
 		uint8_t *px_map)
 {
 	esp_lcd_panel_handle_t panel_handle =
@@ -53,7 +53,7 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area,
 	ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel_handle,
 			area->x1, area->y1,
 			area->x2 + 1, area->y2 + 1,
-			(uint16_t *) px_map));
+			(uint16_t *)px_map));
 }
 
 lv_display_t *lvgl_display_init(void)
@@ -140,7 +140,7 @@ lv_display_t *lvgl_display_init(void)
 		},
 	       	disp));
 	lv_display_set_user_data(disp, panel_handle);
-	lv_display_set_flush_cb(disp, disp_flush);
+	lv_display_set_flush_cb(disp, lvgl_display_push);
 	static lv_color_t *buf[2];
 	for (int i = 0; i < 2; i++) {
 		buf[i] = heap_caps_malloc(SEND_BUF_SIZE, MALLOC_CAP_DMA);
