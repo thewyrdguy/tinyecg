@@ -41,15 +41,22 @@ static inline lv_color_t c_swap(lv_color_t o)
  * 			 LV_COORD_MAX, LV_TXT_FLAG_EXPAND);
  */
 
+// Frame outer sizes
+#define HEIGHT 240
+#define MFWIDTH 460
+#define SFWIDTH 70
+// Inner update window
 #define FWIDTH (SPS / FPS)
-#define RAW_BUF_SIZE (FWIDTH * 230 \
+#define FHEIGHT (HEIGHT - 10)
+#define FMAX (MFWIDTH - 10)
+#define RAW_BUF_SIZE (FWIDTH * FHEIGHT \
                 * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565))
 
-static uint16_t *rawbuf;
+static uint16_t *rawbuf, *clearbuf;
 
 static lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
 	*batt_label, *hr_label;
-static lv_obj_t *lframe, *rframe;
+static lv_obj_t *mframe, *sframe;
 
 static lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
 		int32_t w, int32_t h, lv_color_t bcolour)
@@ -91,18 +98,18 @@ static void display_grid(lv_obj_t *scr)
 	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
 				LV_PART_MAIN);
 
-	lframe = mkframe(scr, LV_ALIGN_LEFT_MID, 460, lv_pct(100),
+	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT,
 			c_swap(lv_color_hex(0x770000)));
-	rframe = mkframe(scr, LV_ALIGN_RIGHT_MID, 70, lv_pct(100),
+	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT,
 			c_swap(lv_color_hex(0x007700)));
 
-	batt_label = mklabel(rframe, NULL);
-	hr_label = mklabel(rframe, batt_label);
-	lv_obj_t *label_2 = mklabel(rframe, hr_label);
-	lv_obj_t *label_3 = mklabel(rframe, label_2);
-	lv_obj_t *label_4 = mklabel(rframe, label_3);
-	lv_obj_t *label_5 = mklabel(rframe, label_4);
-	lv_obj_t *label_6 = mklabel(rframe, label_5);
+	batt_label = mklabel(sframe, NULL);
+	hr_label = mklabel(sframe, batt_label);
+	lv_obj_t *label_2 = mklabel(sframe, hr_label);
+	lv_obj_t *label_3 = mklabel(sframe, label_2);
+	lv_obj_t *label_4 = mklabel(sframe, label_3);
+	lv_obj_t *label_5 = mklabel(sframe, label_4);
+	lv_obj_t *label_6 = mklabel(sframe, label_5);
 
 	lv_label_set_text_static(batt_label, "55%");
 	lv_label_set_text_static(hr_label, "---");
@@ -115,8 +122,12 @@ static void display_grid(lv_obj_t *scr)
 
 void display_init(lv_display_t* disp) {
 	rawbuf = heap_caps_malloc(RAW_BUF_SIZE, MALLOC_CAP_DMA);
-	assert(rawbuf != NULL);
-	memset(rawbuf, 0xff, RAW_BUF_SIZE);
+	clearbuf = heap_caps_malloc(RAW_BUF_SIZE, MALLOC_CAP_DMA);
+	assert(rawbuf != NULL && clearbuf != NULL);
+	memset(clearbuf, 0, RAW_BUF_SIZE);
+	for (int y = 0; y < FHEIGHT; y++) {
+		clearbuf[y * FWIDTH] = lv_color_to_u16(lv_color_hex(0x707070));
+	}
 }
 
 static void display_welcome(lv_obj_t *scr)
@@ -178,7 +189,8 @@ static void display_stop(lv_obj_t *scr)
 static data_stash_t old_stash = {};
 static uint32_t pos = 0;
 
-void display_update(lv_display_t* disp, lv_area_t *where, uint16_t **pbuf)
+void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
+		uint16_t **pbuf, uint16_t **cbuf)
 {
 	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	data_stash_t new_stash;
@@ -212,13 +224,21 @@ void display_update(lv_display_t* disp, lv_area_t *where, uint16_t **pbuf)
 		break;
 	}
 	if (new_stash.state == state_receiving) {
+		memset(rawbuf, 0, RAW_BUF_SIZE);
 		where->x1 = 5 + pos;
 		where->x2 = 4 + FWIDTH + pos;
 		where->y1 = 5;
-		where->y2 = 234;
+		where->y2 = 5 + FHEIGHT - 1;
 		(*pbuf) = rawbuf;
-		pos = (pos + 1) % 400;
+		pos += FWIDTH;
+		if (pos >= FMAX) pos = 0;
+		clear->x1 = 5 + pos;
+		clear->x2 = 4 + FWIDTH + pos;
+		clear->y1 = 5;
+		clear->y2 = 5 + FHEIGHT - 1;
+		(*cbuf) = clearbuf;
 	} else {
+		pos = 0;
 		(*pbuf) = NULL;
 	}
 	old_stash = new_stash;

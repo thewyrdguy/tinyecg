@@ -73,16 +73,20 @@ static void displayTask(void *pvParameter)
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
 			FPS, SPS, xFrequency);
 	TickType_t xLastWakeTime = xTaskGetTickCount();
-	lv_area_t where;
+	lv_area_t where, clear;
 	uint16_t *rawbuf = NULL;
+	uint16_t *clearbuf;
 	while (run_display) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
-			display_update(disp, &where, &rawbuf);
+			display_update(disp, &where, &clear,
+					&rawbuf, &clearbuf);
 			lv_task_handler();
 			if (rawbuf) {
 				lvgl_display_push(disp, &where,
 						(uint8_t *)rawbuf);
+				lvgl_display_push(disp, &clear,
+						(uint8_t *)clearbuf);
 			}
 			xSemaphoreGive(displaySemaphore);
 		}
