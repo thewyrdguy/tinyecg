@@ -1,3 +1,5 @@
+#include <string.h>
+#include <esp_heap_caps.h>
 #include <lvgl.h>
 #include "sampling.h"
 #include "data.h"
@@ -38,6 +40,12 @@ static inline lv_color_t c_swap(lv_color_t o)
  * _lv_txt_get_size(&p, ctxi_text, my_font, 0, 0,
  * 			 LV_COORD_MAX, LV_TXT_FLAG_EXPAND);
  */
+
+#define FWIDTH (SPS / FPS)
+#define RAW_BUF_SIZE (FWIDTH * 230 \
+                * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565))
+
+static uint16_t *rawbuf;
 
 static lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
 	*batt_label, *hr_label;
@@ -105,6 +113,12 @@ static void display_grid(lv_obj_t *scr)
 	lv_label_set_text_static(label_6, "6");
 }
 
+void display_init(lv_display_t* disp) {
+	rawbuf = heap_caps_malloc(RAW_BUF_SIZE, MALLOC_CAP_DMA);
+	assert(rawbuf != NULL);
+	memset(rawbuf, 0xff, RAW_BUF_SIZE);
+}
+
 static void display_welcome(lv_obj_t *scr)
 {
 	lv_obj_clean(scr);
@@ -161,10 +175,10 @@ static void display_stop(lv_obj_t *scr)
 			c_swap(lv_color_hex(0xff0000)), LV_PART_MAIN);
 }
 
-#define FWIDTH (SPS / FPS)
 static data_stash_t old_stash = {};
+static uint32_t pos = 0;
 
-void display_update(lv_display_t* disp)
+void display_update(lv_display_t* disp, lv_area_t *where, uint16_t **pbuf)
 {
 	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	data_stash_t new_stash;
@@ -196,6 +210,16 @@ void display_update(lv_display_t* disp)
 			lv_label_set_text_fmt(hr_label, "%d",
 					new_stash.heartrate);
 		break;
+	}
+	if (new_stash.state == state_receiving) {
+		where->x1 = 5 + pos;
+		where->x2 = 4 + FWIDTH + pos;
+		where->y1 = 5;
+		where->y2 = 234;
+		(*pbuf) = rawbuf;
+		pos = (pos + 1) % 400;
+	} else {
+		(*pbuf) = NULL;
 	}
 	old_stash = new_stash;
 }

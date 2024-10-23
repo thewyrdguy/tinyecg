@@ -57,6 +57,7 @@ static void displayTask(void *pvParameter)
 	displaySemaphore = xSemaphoreCreateMutex();
 	lv_display_t *disp = lvgl_display_init();
 	assert(disp != NULL);
+	display_init(disp);
 
 	esp_timer_handle_t periodic_timer;
 	ESP_ERROR_CHECK(esp_timer_create(
@@ -72,11 +73,17 @@ static void displayTask(void *pvParameter)
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
 			FPS, SPS, xFrequency);
 	TickType_t xLastWakeTime = xTaskGetTickCount();
+	lv_area_t where;
+	uint16_t *rawbuf = NULL;
 	while (run_display) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
-			display_update(disp);
+			display_update(disp, &where, &rawbuf);
 			lv_task_handler();
+			if (rawbuf) {
+				lvgl_display_push(disp, &where,
+						(uint8_t *)rawbuf);
+			}
 			xSemaphoreGive(displaySemaphore);
 		}
 	}
