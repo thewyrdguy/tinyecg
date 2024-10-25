@@ -1,5 +1,6 @@
 set(srcs
 	"tinyecg.c"
+	"localbattery.c"
 	"lvgl_display.c"
 	"ble_runner.c"
 	"display.c"

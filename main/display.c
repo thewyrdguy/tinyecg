@@ -57,6 +57,7 @@ static uint16_t *rawbuf, *clearbuf;
 static lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
 	*batt_label, *hr_label;
 static lv_obj_t *mframe, *sframe;
+static data_stash_t old_stash = {};
 
 static lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
 		int32_t w, int32_t h, lv_color_t bcolour)
@@ -111,7 +112,9 @@ static void display_grid(lv_obj_t *scr)
 	lv_obj_t *label_5 = mklabel(sframe, label_4);
 	lv_obj_t *label_6 = mklabel(sframe, label_5);
 
-	lv_label_set_text_static(batt_label, "55%");
+	uint8_t val = old_stash.lbatt;
+	if (val > 99) val = 99;
+	lv_label_set_text_fmt(batt_label, "%d%%", val);
 	lv_label_set_text_static(hr_label, "---");
 	lv_label_set_text_static(label_2, "2");
 	lv_label_set_text_static(label_3, "3");
@@ -186,7 +189,6 @@ static void display_stop(lv_obj_t *scr)
 			c_swap(lv_color_hex(0xff0000)), LV_PART_MAIN);
 }
 
-static data_stash_t old_stash = {};
 static uint32_t pos = 0;
 
 void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
@@ -221,6 +223,11 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		if (new_stash.heartrate != old_stash.heartrate)
 			lv_label_set_text_fmt(hr_label, "%d",
 					new_stash.heartrate);
+		if (new_stash.lbatt != old_stash.lbatt) {
+			uint8_t val = new_stash.lbatt;
+			if (val > 99) val = 99;
+			lv_label_set_text_fmt(batt_label, "%d%%", val);
+		}
 		break;
 	}
 	if (new_stash.state == state_receiving) {

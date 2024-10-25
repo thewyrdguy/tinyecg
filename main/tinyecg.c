@@ -11,6 +11,7 @@
 #include "data.h"
 #include "sampling.h"
 
+#include "localbattery.h"
 #include "hrm.h"
 #include "pc80b.h"
 
@@ -78,7 +79,8 @@ static void displayTask(void *pvParameter)
 	uint16_t *clearbuf;
 	while (run_display) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
-		if (xSemaphoreTake(displaySemaphore, portMAX_DELAY) == pdTRUE) {
+		if (xSemaphoreTake(displaySemaphore,
+					portMAX_DELAY) == pdTRUE) {
 			display_update(disp, &where, &clear,
 					&rawbuf, &clearbuf);
 			lv_task_handler();
@@ -98,6 +100,7 @@ static void displayTask(void *pvParameter)
 
 void app_main(void)
 {
+	TaskHandle_t lbatt_task;
 	taskSemaphore = xSemaphoreCreateBinary();
 	xSemaphoreGive(taskSemaphore);
 	ESP_LOGI(TAG, "Initializing plugins");
@@ -111,13 +114,18 @@ void app_main(void)
 	}
 	ESP_LOGI(TAG, "Initializing data stash");
 	data_init();
-	ESP_LOGI(TAG, "Initializing display task");
-	// Run graphic interface task on core 1. Core 0 will be running bluetooth.
-	xTaskCreatePinnedToCore(displayTask, "display", 4096*2, NULL, 0, NULL, 1);
+	ESP_LOGI(TAG, "Initializing display and local battery tasks");
+	// Run graphic interface task on core 1.
+	// Core 0 will be running bluetooth.
+	xTaskCreatePinnedToCore(displayTask, "display", 4096*2,
+			NULL, 0, NULL, 1);
+	xTaskCreate(localBatteryTask, "display", 4096*2,
+		       	NULL, 0, &lbatt_task);
 	ESP_LOGI(TAG, "Running BLE scanner");
 	ble_runner(periphs);
 	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
 	report_state(state_goingdown);
+	vTaskDelete(lbatt_task);
 	vTaskDelay(pdMS_TO_TICKS(5000));
 	run_display = false;
 	xSemaphoreTake(taskSemaphore, portMAX_DELAY);
