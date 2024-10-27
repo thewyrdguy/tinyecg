@@ -48,8 +48,11 @@ void localBatteryTask(void *pvParameter)
 		ESP_LOGI(TAG, "Calibrated result: %d", value);
 		/*
 		 * The board mesures 1/2 of the battery voltage on the adc
+		 * Assuming that it'a a LiPo battery, with the voltage
+		 * range from 3.0 to 4.2, we have 1500 mV as empty, and
+		 * 2100 as full. In percent, it will be:
 		 */
-		report_lbatt(value / 19);  // *2*100/3800 mV
+		report_lbatt((value - 1500) / 6);
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 	}
 }
