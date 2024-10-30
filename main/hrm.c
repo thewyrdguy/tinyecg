@@ -90,14 +90,29 @@ static void hrm_receive(uint8_t *data, size_t datalen)
 	report_jumbo(&(data_stash_t){.heartrate = hr}, num, samples);
 }
 
-static const periph_t hrm_desc = {
-	.callback = hrm_receive,
-	.srv_uuid = 0x180D,
-	.nchar_uuid = 0x2A37,
+static void bat_receive(uint8_t *data, size_t datalen)
+{
+	ESP_LOGI(TAG, "bat_receive");
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_INFO);
+}
+
+static const characteristic_t main_chars[] = {
+	{.uuid = 0x2A37, .type = NOTIFY, .callback = hrm_receive},
+	{0},
 };
 
-const periph_t *hrm_init(void)
-{
-	ESP_LOGI(TAG, "Initialising");
-	return &hrm_desc;
-}
+static const characteristic_t batt_chars[] = {
+	{.uuid = 0x2a19, .type = NOTIFY, .callback = bat_receive},
+	{0},
+};
+
+static const service_t services[] = {
+	{.uuid = 0x180D, .chars = main_chars},
+	{.uuid = 0x180f, .chars = batt_chars},
+	{0},
+};
+
+const periph_t hrm_desc = {
+	.srvlist = services,
+	.uuid = 0x180D,
+};

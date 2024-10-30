@@ -1,28 +1,37 @@
-#ifndef _BLE_SCANNER_H
-#define _BLE_SCANNER_H
+#ifndef _BLE_RUNNER_H
+#define _BLE_RUNNER_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct _periph {
+typedef enum {
+	NOTIFY,
+	WRITE,
+} char_type_t;
+
+typedef struct {
+	uint16_t uuid;
+	char_type_t type;
 	void (*callback)(uint8_t *data, size_t datalen);
-	void (*start)(void);
-	void (*stop)(void);
+} characteristic_t;
+
+typedef struct {
+	uint16_t uuid;
+	characteristic_t *chars;
+} service_t;
+
+typedef struct {
+	service_t *srvlist;
 	const char *name;
-	uint16_t srv_uuid;
-	uint16_t nchar_uuid;
+	uint16_t uuid;
 } periph_t;
 
-typedef struct _periph_listelem {
-	const struct _periph_listelem *next;
-	const periph_t *periph;
-} periph_listelem_t;
-
-void ble_runner(periph_listelem_t *pptrs);
+void ble_write(uint16_t handle, uint8_t *data, size_t datalen);
+void ble_runner(const periph_t *periphs[]);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _BLE_SCANNER_H */
+#endif /* _BLE_RUNNER_H */

@@ -19,30 +19,6 @@
 
 #define LV_TICK_PERIOD_MS 1
 
-#if 0
-/*
- * Found R02_79B5
- * uuid16: 1801
- * uuid16: 180a
- * uuid128: 9ecadc240ee5a9e093f3a3b5f0ff406e
- * uuid128: c75d2a01e36526af474e11d728f75bde
- */
-periph_t ring_desc = {
-	.name = "R02_79B5",
-	.srv_uuid = 0xca9e,  // or 0x5dc7  -- they are both uuid128!
-	.nchar_uuid = 0x2A37, // don't know
-};
-#endif
-
-typedef const periph_t *(*init_func_t)(void);
-static init_func_t inits[] = {
-	hrm_init,
-	pc80b_init,
-	NULL,
-};
-
-static periph_listelem_t *periphs = NULL;
-
 static void lv_tick_task(void *arg) {
 	lv_tick_inc(LV_TICK_PERIOD_MS);
 }
@@ -103,15 +79,6 @@ void app_main(void)
 	TaskHandle_t lbatt_task;
 	taskSemaphore = xSemaphoreCreateBinary();
 	xSemaphoreGive(taskSemaphore);
-	ESP_LOGI(TAG, "Initializing plugins");
-	for (init_func_t *funcp = inits; *funcp; funcp++) {
-		const periph_t *desc = (*funcp)();
-		periph_listelem_t *new = malloc(sizeof(periph_listelem_t));
-		assert(new != NULL);
-		new->next = periphs;
-		new->periph = desc;
-		periphs = new;
-	}
 	ESP_LOGI(TAG, "Initializing data stash");
 	data_init();
 	ESP_LOGI(TAG, "Initializing display and local battery tasks");
@@ -122,7 +89,7 @@ void app_main(void)
 	xTaskCreate(localBatteryTask, "display", 4096*2,
 		       	NULL, 0, &lbatt_task);
 	ESP_LOGI(TAG, "Running BLE scanner");
-	ble_runner(periphs);
+	ble_runner((periph_t*[]){&hrm_desc, &pc80b_desc, NULL});
 	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
 	report_state(state_goingdown);
 	vTaskDelete(lbatt_task);

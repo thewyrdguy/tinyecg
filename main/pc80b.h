@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-const periph_t *pc80b_init(void);
+extern const periph_t pc80b_desc;
 
 #ifdef __cplusplus
 }

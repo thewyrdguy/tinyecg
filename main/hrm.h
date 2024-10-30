@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-const periph_t *hrm_init(void);
+extern const periph_t hrm_desc;
 
 #ifdef __cplusplus
 }

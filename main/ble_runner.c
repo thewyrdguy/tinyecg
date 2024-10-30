@@ -19,28 +19,35 @@
 #define TAG "ble_runner"
 
 #define SCAN_DURATION 50
-#define PROFILE_APP_ID 0
 #define LOCAL_MTU 512
 
 SemaphoreHandle_t btSemaphore;
 
-periph_listelem_t *phead = NULL;
-const periph_t *periph = NULL;
+static const periph_t **pparr;
+static const service_t *srvlist;
 
-struct gattc_profile_inst {
-	uint16_t gattc_if;
-	uint16_t app_id;
-	uint16_t conn_id;
-	uint16_t service_start_handle;
-	uint16_t service_end_handle;
-	uint16_t char_handle;
-	esp_bd_addr_t remote_bda;
-} gattc_profile = {
-	.gattc_if = ESP_GATT_IF_NONE,
-};
+static uint16_t saved_gattc_if = ESP_GATT_IF_NONE;
 
-bool connect = false;
-bool get_server = false;
+uint16_t gattc_conn_id;
+esp_bd_addr_t gattc_remote_bda;
+
+typedef struct _srv_profile {
+	struct _srv_profile *next;
+	const service_t *srvdesc;
+	uint16_t start_handle;
+	uint16_t end_handle;
+} srv_profile_t;
+static srv_profile_t *srvprofs = NULL;
+
+typedef struct _handle {
+	struct _handle *next;
+	uint16_t handle;
+	bool is_notify;
+	void (*callback)(uint8_t *data, size_t datalen);
+	uint16_t srv_start_handle;
+	uint16_t srv_end_handle;
+} handle_t;
+static handle_t *handles = NULL;
 
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -64,18 +71,16 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		}
 		break;
 	case ESP_GAP_BLE_SCAN_RESULT_EVT:
-		esp_ble_gap_cb_param_t *scan_result =
-			(esp_ble_gap_cb_param_t *)param;
-		switch (scan_result->scan_rst.search_evt) {
+		switch (param->scan_rst.search_evt) {
 		case ESP_GAP_SEARCH_INQ_RES_EVT:
 			ESP_LOG_BUFFER_HEX_LEVEL(TAG,
-					scan_result->scan_rst.bda, 6,
+					param->scan_rst.bda, 6,
 				       	ESP_LOG_DEBUG);
 			ESP_LOGD(TAG, "Adv Data Len %d, Scan Response Len %d",
-					scan_result->scan_rst.adv_data_len,
-					scan_result->scan_rst.scan_rsp_len);
+					param->scan_rst.adv_data_len,
+					param->scan_rst.scan_rsp_len);
 			adv_name = esp_ble_resolve_adv_data(
-					scan_result->scan_rst.ble_adv,
+					param->scan_rst.ble_adv,
 					ESP_BLE_AD_TYPE_NAME_CMPL,
 					&adv_name_len);
 			ESP_LOGD(TAG, "Device Name Len %d", adv_name_len);
@@ -88,67 +93,65 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				char buf[ESP_BD_ADDR_LEN * 3 + 1];
 				for (int i = 0; i < ESP_BD_ADDR_LEN; i++)
 					sprintf(buf+(i*3), "%02x:",
-						scan_result->scan_rst.bda[i]);
+						param->scan_rst.bda[i]);
 				buf[sizeof(buf) - 2] = '\0';
 				report_periph(buf, sizeof(buf) - 1);
 			}
 
 			adv_srv = esp_ble_resolve_adv_data(
-					scan_result->scan_rst.ble_adv,
+					param->scan_rst.ble_adv,
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
 					&adv_srv_len);
 			ESP_LOGD(TAG, "Device Srv Len %d", adv_srv_len);
-			for (const periph_listelem_t *pptr = phead; pptr;
-						pptr = pptr->next) {
-				periph = pptr->periph;
-				if (periph->name
-				    && (strlen(periph->name) == adv_name_len)
-				    && (strncmp((char *)adv_name, periph->name,
+			if (srvlist) {
+				ESP_LOGI(TAG, "Ignoring because have already");
+				break;
+			}
+			for (int i = 0; pparr[i]; i++) {
+				if ((pparr[i])->name
+				    && (strlen((pparr[i])->name) == adv_name_len)
+				    && (strncmp((char *)adv_name, (pparr[i])->name,
 						adv_name_len) == 0)) {
+					srvlist = (pparr[i])->srvlist;
 					break;
 				}
 				if (adv_srv_len != sizeof(uint16_t)) {
-					periph = NULL;
 					continue;
 				}
 				adv_srv_uuid = adv_srv[0] + (adv_srv[1] << 8);
 				ESP_LOGD(TAG, "Device Srv uuid %04x",
 						adv_srv_uuid);
-				if (adv_srv_uuid == periph->srv_uuid) {
+				if (adv_srv_uuid == (pparr[i])->uuid) {
+					srvlist = (pparr[i])->srvlist;
 					break;
 				}
-				periph = NULL;
 			}
-			if (periph) {
-				ESP_LOGI(TAG, "Found %s",
+			if (srvlist) {
+				ESP_LOGI(TAG, "Found %s, stop scan & connect",
 					adv_name_len ? (char*)adv_name
 							: "noname");
-				if (!connect) {
-					connect = true;
-					ESP_LOGI(TAG, "Connecting");
-					esp_ble_gap_stop_scanning();
-					esp_ble_gattc_open(gattc_profile.gattc_if,
-						scan_result->scan_rst.bda,
-						scan_result->scan_rst.ble_addr_type,
-						true);
-				}
+				esp_ble_gap_stop_scanning();
+				esp_ble_gattc_open(saved_gattc_if,
+					param->scan_rst.bda,
+					param->scan_rst.ble_addr_type,
+					true);
 			}
 			break;
 		case ESP_GAP_SEARCH_INQ_CMPL_EVT:
-			ESP_LOGD(TAG, "Scan completed");
-			if (!connect) {
+			ESP_LOGI(TAG, "Scan completed");
+			if (!srvlist) {
 				ESP_LOGI(TAG, "Found nothing");
 				xSemaphoreGive(btSemaphore);
 			}
 			break;
 		default:
 			ESP_LOGE(TAG, "Unhandled GAP search EVT %x",
-					scan_result->scan_rst.search_evt);
+					param->scan_rst.search_evt);
 		}
 		break;
 	case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
 		if (param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-			ESP_LOGI(TAG, "Scan completed");
+			ESP_LOGI(TAG, "Scan stopped");
 		} else {
 			ESP_LOGE(TAG, "scan stop failed, error status = %x",
 					param->scan_stop_cmpl.status);
@@ -189,6 +192,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		esp_ble_gattc_cb_param_t *p_data)
 {
+	handle_t *handle;  // used in a couple of case sections
 	static esp_ble_scan_params_t scan_params = {
 		.scan_type = BLE_SCAN_TYPE_PASSIVE,
 		.own_addr_type = BLE_ADDR_TYPE_PUBLIC,
@@ -200,7 +204,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	// If multiple profiles, we would select the one and call its callback
 	switch (event) {
 	case ESP_GATTC_REG_EVT:
-		if (p_data->reg.app_id != PROFILE_APP_ID) {
+		if (p_data->reg.app_id != 0) {
 			ESP_LOGE(TAG, "REG_EVT gave us wrong app_id %d",
 					p_data->reg.app_id);
 			return;
@@ -208,7 +212,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		if (p_data->reg.status == ESP_GATT_OK) {
 			ESP_LOGD(TAG, "ESP_GATTC_REG_EVT app_id %04x if %d",
 					p_data->reg.app_id, gattc_if);
-			gattc_profile.gattc_if = gattc_if;
+			saved_gattc_if = gattc_if;
 		} else {
 			ESP_LOGI(TAG, "reg app failed, app_id %04x, status %d",
 					p_data->reg.app_id, p_data->reg.status);
@@ -220,11 +224,11 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	case ESP_GATTC_CONNECT_EVT:
 		ESP_LOGD(TAG, "ESP_GATTC_CONNECT_EVT conn_id %d, if %d",
 				p_data->connect.conn_id, gattc_if);
-		gattc_profile.conn_id = p_data->connect.conn_id;
-		memcpy(gattc_profile.remote_bda, p_data->connect.remote_bda,
+		gattc_conn_id = p_data->connect.conn_id;
+		memcpy(&gattc_remote_bda, p_data->connect.remote_bda,
 				sizeof(esp_bd_addr_t));
 		ESP_LOGI(TAG, "REMOTE BDA:");
-		ESP_LOG_BUFFER_HEX_LEVEL(TAG, gattc_profile.remote_bda,
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, gattc_remote_bda,
 				sizeof(esp_bd_addr_t), ESP_LOG_INFO);
 		ESP_ERROR_CHECK(esp_ble_gattc_send_mtu_req(gattc_if,
 				p_data->connect.conn_id));
@@ -242,16 +246,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					p_data->dis_srvc_cmpl.conn_id);
 			esp_ble_gattc_search_service(gattc_if,
 					p_data->dis_srvc_cmpl.conn_id,
-#if 1
-					NULL
-#else
-					&(esp_bt_uuid_t){
-						.len = ESP_UUID_LEN_16,
-						.uuid = {.uuid16 =
-							periph->srv_uuid,},
-					}
-#endif
-					);
+					NULL);
 		} else {
 			ESP_LOGE(TAG, "discover service failed, status %d",
 					p_data->dis_srvc_cmpl.status);
@@ -298,16 +293,24 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 				p_data->search_res.start_handle,
 				p_data->search_res.end_handle,
 				p_data->search_res.srvc_id.inst_id);
-		if (p_data->search_res.srvc_id.uuid.len == ESP_UUID_LEN_16
-		  && p_data->search_res.srvc_id.uuid.uuid.uuid16 ==
-							periph->srv_uuid) {
-			ESP_LOGI(TAG, "Service uuid %04x discoverd",
-					periph->srv_uuid);
-			gattc_profile.service_start_handle =
-				p_data->search_res.start_handle;
-			gattc_profile.service_end_handle =
-				p_data->search_res.end_handle;
-			get_server = true;
+		for (const service_t *srv = srvlist; srv->uuid; srv++) {
+			if (p_data->search_res.srvc_id.uuid.len
+					== ESP_UUID_LEN_16 &&
+			    p_data->search_res.srvc_id.uuid.uuid.uuid16
+			    		== srv->uuid) {
+				ESP_LOGI(TAG, "Service uuid %04x discoverd",
+						srv->uuid);
+				srv_profile_t *srvprof =
+					malloc(sizeof(srv_profile_t));
+				assert(srvprof != NULL);
+				srvprof->next = srvprofs;
+				srvprofs = srvprof;
+				srvprof->srvdesc = srv;
+				srvprof->start_handle =
+					p_data->search_res.start_handle;
+				srvprof->end_handle =
+					p_data->search_res.end_handle;
+			}
 		}
 		break;
 	case ESP_GATTC_SEARCH_CMPL_EVT:
@@ -325,108 +328,149 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		} else {
 			ESP_LOGW(TAG, "Unknown service information source");
 		}
-		if (get_server) {
-			uint16_t count = 0;
-			if (esp_ble_gattc_get_attr_count(
-					gattc_if,
-					p_data->search_cmpl.conn_id,
-					ESP_GATT_DB_CHARACTERISTIC,
-					gattc_profile.service_start_handle,
-					gattc_profile.service_end_handle,
-					0,  // "Invalid handle"?
-					&count) != ESP_GATT_OK) {
-				ESP_LOGE(TAG,
-					"esp_ble_gattc_get_attr_count error");
-				break;
-			}
-			if (count == 0) {
-				ESP_LOGE(TAG, "zero characteristics found");
-				break;
-			}
-			ESP_LOGI(TAG, "%hu characteristics found", count);
-			esp_gattc_char_elem_t *char_elem_result =
-				(esp_gattc_char_elem_t *)malloc(
-					sizeof(esp_gattc_char_elem_t) * count);
-			if (!char_elem_result) {
-				ESP_LOGE(TAG,
-					"gattc no memi for characteristics");
-				break;
-			}
-			if (esp_ble_gattc_get_all_char(
-					gattc_if,
-					p_data->search_cmpl.conn_id,
-					gattc_profile.service_start_handle,
-					gattc_profile.service_end_handle,
-					char_elem_result,
-					&count,
-					0) != ESP_GATT_OK) {
-				ESP_LOGE(TAG, "get_all_char error");
-				free(char_elem_result);
-				break;
-			}
-			bool found_nhandle = false;
-			for (int i = 0; i < count; i++) {
-				ESP_LOGI(TAG,
-					"%d: %04x hdl:%d r:%s, w:%s+%s, n:%s",
-					i,
-					char_elem_result[i].uuid.uuid.uuid16,
-					char_elem_result[i].char_handle,
-					(char_elem_result[i].properties
-					& ESP_GATT_CHAR_PROP_BIT_READ)
-						? "y" : "n",
-					(char_elem_result[i].properties
-					& ESP_GATT_CHAR_PROP_BIT_WRITE_NR)
-						? "y" : "n",
-					(char_elem_result[i].properties
-					& ESP_GATT_CHAR_PROP_BIT_WRITE)
-						? "y" : "n",
-					(char_elem_result[i].properties
-					& ESP_GATT_CHAR_PROP_BIT_NOTIFY)
-						? "y" : "n"
-				);
-				if (char_elem_result[i].uuid.uuid.uuid16
-                                                == periph->nchar_uuid) {
-					gattc_profile.char_handle =
-						char_elem_result[i].char_handle;
-					found_nhandle = true;
-				}
-			}
-			if (found_nhandle) {
-				ESP_LOGI(TAG, "Registering for notify");
-				esp_ble_gattc_register_for_notify(
-					gattc_if,
-					gattc_profile.remote_bda,
-					gattc_profile.char_handle);
-			}
-			free(char_elem_result);
-		} else {
+		if (!srvprofs) {
 			ESP_LOGI(TAG, "Search complete w/o success, close");
 			if (esp_ble_gattc_close(gattc_if,
 				p_data->search_cmpl.conn_id) != ESP_GATT_OK) {
 				ESP_LOGE(TAG, "gattc_close error");
 			}
+			break;
+		}
+		for (srv_profile_t *sp = srvprofs; sp; /* see bottom */) {
+			uint16_t count = 0;
+			if (esp_ble_gattc_get_attr_count(
+					gattc_if,
+					p_data->search_cmpl.conn_id,
+					ESP_GATT_DB_CHARACTERISTIC,
+					sp->start_handle,
+					sp->end_handle,
+					0,  // "Invalid handle"?
+					&count) != ESP_GATT_OK) {
+				ESP_LOGE(TAG,
+					"esp_ble_gattc_get_attr_count error");
+			}
+			ESP_LOGI(TAG, "%hu characteristics found", count);
+
+			if (!count) goto next_ppsp;
+
+			esp_gattc_char_elem_t *char_elem_res =
+				(esp_gattc_char_elem_t *)malloc(
+					sizeof(esp_gattc_char_elem_t) * count);
+			assert(char_elem_res != NULL);
+			if (esp_ble_gattc_get_all_char(
+					gattc_if,
+					p_data->search_cmpl.conn_id,
+					sp->start_handle,
+					sp->end_handle,
+					char_elem_res,
+					&count,
+					0) != ESP_GATT_OK) {
+				ESP_LOGE(TAG, "get_all_char error");
+				free(char_elem_res);
+				goto next_ppsp;
+			}
+			for (int i = 0; i < count; i++) {
+				ESP_LOGI(TAG,
+					"%d: %04x hdl:%d r:%s, w:%s+%s, n:%s",
+					i,
+					char_elem_res[i].uuid.uuid.uuid16,
+					char_elem_res[i].char_handle,
+					(char_elem_res[i].properties
+					& ESP_GATT_CHAR_PROP_BIT_READ)
+						? "y" : "n",
+					(char_elem_res[i].properties
+					& ESP_GATT_CHAR_PROP_BIT_WRITE_NR)
+						? "y" : "n",
+					(char_elem_res[i].properties
+					& ESP_GATT_CHAR_PROP_BIT_WRITE)
+						? "y" : "n",
+					(char_elem_res[i].properties
+					& ESP_GATT_CHAR_PROP_BIT_NOTIFY)
+						? "y" : "n"
+				);
+				for (characteristic_t *chr = sp->srvdesc->chars;
+					       	chr->uuid; chr++) {
+					if (char_elem_res[i].uuid.uuid.uuid16
+                                       	        	== chr->uuid) {
+						handle_t *handle = malloc(
+							sizeof(handle_t));
+						assert(handle != NULL);
+						handle->next = handles;
+						handles = handle;
+						handle->handle =
+							char_elem_res[i]
+							.char_handle;
+						handle->is_notify =
+							chr->type == NOTIFY;
+						handle->callback =
+							chr->callback;
+						handle->srv_start_handle =
+							sp->start_handle;
+						handle->srv_end_handle =
+							sp->end_handle;
+					}
+				}
+			}
+			free(char_elem_res);
+
+next_ppsp:
+			srv_profile_t **ppsp = &sp;
+			sp = sp->next;
+			free(*ppsp);
+			(*ppsp) = sp;
+		}
+
+		for (handle_t *handle = handles; handle;
+					handle = handle->next) {
+			if (handle->is_notify) {
+				ESP_LOGI(TAG, "Registering for notify");
+				esp_ble_gattc_register_for_notify(
+					gattc_if,
+					gattc_remote_bda,
+					handle->handle);
+			} else {
+				ESP_LOGI(TAG, "Returning write hdl");
+				handle->callback(
+					(uint8_t*)&handle->handle,
+					sizeof(uint16_t));
+			}
+			/* unlike srv profs, these stay allocated */
 		}
 		break;
 	case ESP_GATTC_REG_FOR_NOTIFY_EVT:
 		ESP_LOGD(TAG, "ESP_GATTC_REG_FOR_NOTIFY_EVT");
 		uint16_t count = 0;
 		uint16_t notify_enable = 1;
+		for (handle = handles; handle; handle = handle->next) {
+			if (handle->handle == p_data->reg_for_notify.handle)
+				break;
+		}
+		if (!handle) {
+			ESP_LOGE(TAG, "Unexpected handle %04hx",
+					p_data->reg_for_notify.handle);
+			break;
+		}
+		if (!handle->is_notify) {
+			ESP_LOGE(TAG, "Unexpected handle %04hx for notify",
+					p_data->reg_for_notify.handle);
+			break;
+		}
 		if (esp_ble_gattc_get_attr_count(
 				gattc_if,
-				gattc_profile.conn_id,
+				gattc_conn_id,
 				ESP_GATT_DB_DESCRIPTOR,
-				gattc_profile.service_start_handle,
-				gattc_profile.service_end_handle,
-				gattc_profile.char_handle,
+				handle->srv_start_handle,
+				handle->srv_end_handle,
+				handle->handle,
 				&count) != ESP_GATT_OK) {
 			ESP_LOGE(TAG, "esp_ble_gattc_get_attr_count error");
 			break;
 		}
+		ESP_LOGI(TAG, "%hu descriptors found", count);
 		if (count == 0) {
 			ESP_LOGE(TAG, "zero descriptors found");
 			break;
 		}
-		ESP_LOGI(TAG, "%hu descriptors found", count);
 		esp_gattc_descr_elem_t *descr_elem_result = malloc(
 				sizeof(esp_gattc_descr_elem_t) * count);
 		if (!descr_elem_result) {
@@ -435,8 +479,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		if (esp_ble_gattc_get_all_descr(
 				gattc_if,
-				gattc_profile.conn_id,
-				p_data->reg_for_notify.handle,
+				gattc_conn_id,
+				handle->handle,
 				descr_elem_result,
 				&count,
 				0) != ESP_GATT_OK) {
@@ -463,7 +507,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		if (esp_ble_gattc_write_char_descr(
 				gattc_if,
-				gattc_profile.conn_id,
+				gattc_conn_id,
 				client_config_handle,
 				sizeof(notify_enable),
 				(uint8_t*)&notify_enable,
@@ -476,18 +520,26 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		break;
 	case ESP_GATTC_NOTIFY_EVT:
-		ESP_LOGD(TAG, "Receive %s (%d bytes)",
+		ESP_LOGD(TAG, "Receive %s (%d bytes) from handle %04hx",
 			(p_data->notify.is_notify) ? "notify" : "indicate",
-			p_data->notify.value_len);
-		if (periph) {
-			periph->callback(p_data->notify.value,
-					p_data->notify.value_len);
-		} else {
-			ESP_LOGE(TAG, "Receive %s (%d bytes) but no periph",
-				(p_data->notify.is_notify)
-						? "notify" : "indicate",
-				p_data->notify.value_len);
+			p_data->notify.value_len,
+			p_data->notify.handle);
+		for (handle = handles; handle; handle = handle->next) {
+			if (handle->handle == p_data->notify.handle)
+				break;
 		}
+		if (!handle) {
+			ESP_LOGE(TAG, "Unexpected handle %04hx",
+					p_data->notify.handle);
+			break;
+		}
+		if (!handle->is_notify) {
+			ESP_LOGE(TAG, "Unexpected handle %04hx for notify",
+					p_data->notify.handle);
+			break;
+		}
+		handle->callback(p_data->notify.value,
+					p_data->notify.value_len);
 		break;
 	case ESP_GATTC_WRITE_DESCR_EVT:
 		if (p_data->write.status != ESP_GATT_OK) {
@@ -496,7 +548,6 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			break;
 		}
 		ESP_LOGI(TAG, "Write descr success");
-		if (periph && periph->start) periph->start();
 		break;
 	case ESP_GATTC_SRVC_CHG_EVT:
 		ESP_LOGI(TAG, "ESP_GATTC_SRVC_CHG_EVT, bd_addr:");
@@ -507,11 +558,15 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		ESP_LOGI(TAG, "write char status = %x", p_data->write.status);
 		break;
 	case ESP_GATTC_DISCONNECT_EVT:
-		connect = false;
-		periph = NULL;
 		ESP_LOGI(TAG, "ESP_GATTC_DISCONNECT_EVT, reason = %d",
 				p_data->disconnect.reason);
-		if (periph && periph->stop) periph->stop();
+		srvlist = NULL;
+		for (handle_t *handle = handles; handle;) {
+			handle_t **pptr = &handle;
+			handle = handle->next;
+			free(*pptr);
+			(*pptr) = handle;
+		}
 		// This will send GAP indication that it can start scanning
 		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
 		break;
@@ -527,9 +582,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	}
 }
 
-void ble_runner(periph_listelem_t *pptrs)
+void ble_runner(const periph_t *periphs[])
 {
-	phead = pptrs;
+	pparr = periphs;
 	btSemaphore = xSemaphoreCreateBinary();
 	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
 	esp_err_t ret = nvs_flash_init();
@@ -546,7 +601,7 @@ void ble_runner(periph_listelem_t *pptrs)
 	ESP_ERROR_CHECK(esp_bluedroid_enable());
 	ESP_ERROR_CHECK(esp_ble_gap_register_callback(esp_gap_cb));
 	ESP_ERROR_CHECK(esp_ble_gattc_register_callback(esp_gattc_cb));
-	ESP_ERROR_CHECK(esp_ble_gattc_app_register(PROFILE_APP_ID));
+	ESP_ERROR_CHECK(esp_ble_gattc_app_register(0));
 	ESP_ERROR_CHECK(esp_ble_gatt_set_local_mtu(LOCAL_MTU));
 	ESP_LOGI(TAG, "Initialization done");
 

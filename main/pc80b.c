@@ -23,20 +23,31 @@
 			ESP_GATT_AUTH_REQ_NONE);
 */
 
-static void pc80b_receive(uint8_t *data, size_t datalen)
+static uint16_t write_handle;
+
+static void receive(uint8_t *data, size_t datalen)
 {
 	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_INFO);
 }
 
-static const periph_t pc80b_desc = {
-	.callback = pc80b_receive,
-	.name = "PC80B-BLE",
-	.srv_uuid = 0xfff0,
-	.nchar_uuid = 0xfff1,
+static void get_write_handle(uint8_t *data, size_t datalen)
+{
+	assert(datalen == sizeof(uint16_t));
+	write_handle = *(uint16_t*)data;
+}
+
+static const characteristic_t main_chars[] = {
+	{.uuid = 0xfff1, .type = NOTIFY, .callback = receive},
+	{.uuid = 0xfff2, .type = WRITE, .callback = get_write_handle},
+	{0},
 };
 
-const periph_t *pc80b_init(void)
-{
-	ESP_LOGI(TAG, "Initialising");
-	return &pc80b_desc;
-}
+static const service_t services[] = {
+	{.uuid = 0xfff0, .chars = main_chars},
+	{0},
+};
+
+const periph_t pc80b_desc = {
+	.srvlist = services,
+	.name = "PC80B-BLE",
+};
