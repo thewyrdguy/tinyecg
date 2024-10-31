@@ -92,8 +92,9 @@ static void hrm_receive(uint8_t *data, size_t datalen)
 
 static void bat_receive(uint8_t *data, size_t datalen)
 {
-	ESP_LOGI(TAG, "bat_receive");
+	ESP_LOGI(TAG, "bat_receive (%zu):", datalen);
 	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_INFO);
+	if (datalen == 1) report_rbatt(data[0]);
 }
 
 static const characteristic_t main_chars[] = {
@@ -102,13 +103,13 @@ static const characteristic_t main_chars[] = {
 };
 
 static const characteristic_t batt_chars[] = {
-	{.uuid = 0x2a19, .type = NOTIFY, .callback = bat_receive},
+	{.uuid = 0x2A19, .type = NOTIFY, .callback = bat_receive},
 	{0},
 };
 
 static const service_t services[] = {
 	{.uuid = 0x180D, .chars = main_chars},
-	{.uuid = 0x180f, .chars = batt_chars},
+	{.uuid = 0x180F, .chars = batt_chars},
 	{0},
 };
 

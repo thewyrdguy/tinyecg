@@ -44,8 +44,7 @@ typedef struct _handle {
 	uint16_t handle;
 	bool is_notify;
 	void (*callback)(uint8_t *data, size_t datalen);
-	uint16_t srv_start_handle;
-	uint16_t srv_end_handle;
+	srv_profile_t *sp;
 } handle_t;
 static handle_t *handles = NULL;
 
@@ -336,7 +335,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			}
 			break;
 		}
-		for (srv_profile_t *sp = srvprofs; sp; /* see bottom */) {
+		for (srv_profile_t *sp = srvprofs; sp; sp = sp->next) {
 			uint16_t count = 0;
 			if (esp_ble_gattc_get_attr_count(
 					gattc_if,
@@ -351,7 +350,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			}
 			ESP_LOGI(TAG, "%hu characteristics found", count);
 
-			if (!count) goto next_ppsp;
+			if (!count) continue;
 
 			esp_gattc_char_elem_t *char_elem_res =
 				(esp_gattc_char_elem_t *)malloc(
@@ -367,7 +366,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					0) != ESP_GATT_OK) {
 				ESP_LOGE(TAG, "get_all_char error");
 				free(char_elem_res);
-				goto next_ppsp;
+				continue;
 			}
 			for (int i = 0; i < count; i++) {
 				ESP_LOGI(TAG,
@@ -404,20 +403,11 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 							chr->type == NOTIFY;
 						handle->callback =
 							chr->callback;
-						handle->srv_start_handle =
-							sp->start_handle;
-						handle->srv_end_handle =
-							sp->end_handle;
+						handle->sp = sp;
 					}
 				}
 			}
 			free(char_elem_res);
-
-next_ppsp:
-			srv_profile_t **ppsp = &sp;
-			sp = sp->next;
-			free(*ppsp);
-			(*ppsp) = sp;
 		}
 
 		for (handle_t *handle = handles; handle;
@@ -459,8 +449,8 @@ next_ppsp:
 				gattc_if,
 				gattc_conn_id,
 				ESP_GATT_DB_DESCRIPTOR,
-				handle->srv_start_handle,
-				handle->srv_end_handle,
+				handle->sp->start_handle,
+				handle->sp->end_handle,
 				handle->handle,
 				&count) != ESP_GATT_OK) {
 			ESP_LOGE(TAG, "esp_ble_gattc_get_attr_count error");
@@ -562,11 +552,17 @@ next_ppsp:
 				p_data->disconnect.reason);
 		srvlist = NULL;
 		for (handle_t *handle = handles; handle;) {
-			handle_t **pptr = &handle;
+			handle_t *old = handle;
 			handle = handle->next;
-			free(*pptr);
-			(*pptr) = handle;
+			free(old);
 		}
+		handles = NULL;
+		for (srv_profile_t *sp = srvprofs; sp;) {
+			srv_profile_t *old = sp;
+			sp = sp->next;
+			free(old);
+		}
+		srvprofs = NULL;
 		// This will send GAP indication that it can start scanning
 		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
 		break;
