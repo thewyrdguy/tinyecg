@@ -89,7 +89,7 @@ void app_main(void)
 	xTaskCreate(localBatteryTask, "display", 4096*2,
 		       	NULL, 0, &lbatt_task);
 	ESP_LOGI(TAG, "Running BLE scanner");
-	ble_runner((periph_t*[]){&hrm_desc, &pc80b_desc, NULL});
+	ble_runner((const periph_t*[]){&hrm_desc, &pc80b_desc, NULL});
 	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
 	report_state(state_goingdown);
 	vTaskDelete(lbatt_task);

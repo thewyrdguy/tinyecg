@@ -83,6 +83,14 @@ void report_periph(char const *name, size_t len)
 	}
 }
 
+void report_found(bool found)
+{
+	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
+		stash.found = found;
+		xSemaphoreGive(dataSemaphore);
+	}
+}
+
 static int repeated_underrun = 0;  // To minimise noise in the log
 
 void get_stash(data_stash_t *newstash, size_t num, int8_t *samples_p)

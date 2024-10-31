@@ -63,10 +63,12 @@ typedef struct _ds {
 	bool underrun;
 	enum state_e state;
 	char name[32];
+	bool found;
 } data_stash_t;
 
 void report_state(enum state_e state);
 void report_periph(char const *name, size_t len);
+void report_found(bool found);
 void report_jumbo(data_stash_t *ds, int num, int8_t *samples);
 void report_rbatt(uint8_t rbatt);
 void report_lbatt(uint8_t lbatt);

@@ -130,6 +130,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 					adv_name_len ? (char*)adv_name
 							: "noname");
 				esp_ble_gap_stop_scanning();
+				report_found(true);
 				esp_ble_gattc_open(saved_gattc_if,
 					param->scan_rst.bda,
 					param->scan_rst.ble_addr_type,
@@ -563,6 +564,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			free(old);
 		}
 		srvprofs = NULL;
+		report_found(false);
 		// This will send GAP indication that it can start scanning
 		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
 		break;

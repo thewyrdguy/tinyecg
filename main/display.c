@@ -54,7 +54,7 @@ static inline lv_color_t c_swap(lv_color_t o)
 
 static uint16_t *rawbuf, *clearbuf;
 
-static lv_obj_t *welcome_label, *scanning_label, *update_label, *goodbye_label,
+static lv_obj_t *welcome_label, *update_label, *goodbye_label,
 	*batt_label, *hr_label;
 static lv_obj_t *mframe, *sframe;
 static data_stash_t old_stash = {};
@@ -148,23 +148,10 @@ static void display_welcome(lv_obj_t *scr)
 	lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_style_text_color(welcome_label,
 			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
-
-	scanning_label = lv_label_create(scr);
-	lv_obj_set_width(scanning_label, lv_pct(30));
-	lv_obj_set_height(scanning_label, lv_pct(15));
-	lv_obj_align(scanning_label, LV_ALIGN_TOP_LEFT, 0, 0);
-	lv_obj_set_style_text_font(scanning_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(scanning_label,
-			c_swap(lv_color_hex(0x7F7F7F)), LV_PART_MAIN);
-	lv_obj_set_style_text_align(scanning_label, LV_ALIGN_RIGHT_MID,
-				LV_PART_MAIN);
-	lv_label_set_text_static(scanning_label, "Scanning:");
-
 	update_label = lv_label_create(scr);
-	lv_obj_set_width(update_label, lv_pct(50));
+	lv_obj_set_width(update_label, lv_pct(80));
 	lv_obj_set_height(update_label, lv_pct(15));
-	lv_obj_align_to(update_label, scanning_label, LV_ALIGN_OUT_RIGHT_MID,
-				0, 0);
+	lv_obj_align(update_label, LV_ALIGN_TOP_LEFT, 0, 0);
 	lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_style_text_color(update_label,
 			c_swap(lv_color_hex(0x7F7F7F)), LV_PART_MAIN);
@@ -217,7 +204,9 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 	switch (new_stash.state) {
 	case state_scanning:
 		lv_obj_clean(update_label);
-		lv_label_set_text(update_label, new_stash.name);
+		lv_label_set_text_fmt(update_label, "%s: %s",
+				new_stash.found ? "Found" : "Scanning",
+				new_stash.name);
 		break;
 	default:
 		if (new_stash.heartrate != old_stash.heartrate)
