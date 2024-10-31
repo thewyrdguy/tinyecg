@@ -11,6 +11,7 @@
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <esp_log.h>
 
 #include "ble_runner.h"
@@ -47,6 +48,17 @@ typedef struct _handle {
 	srv_profile_t *sp;
 } handle_t;
 static handle_t *handles = NULL;
+
+static TaskHandle_t read_rssi_task;
+static void readRssiTask(void *pvParameter)
+{
+	const TickType_t xFrequency = configTICK_RATE_HZ * 15;
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	while (1) {
+		ESP_ERROR_CHECK(esp_ble_gap_read_rssi(gattc_remote_bda));
+		vTaskDelayUntil(&xLastWakeTime, xFrequency);
+	}
+}
 
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -182,6 +194,12 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				param->pkt_data_length_cmpl.params.rx_len,
 				param->pkt_data_length_cmpl.params.tx_len,
 				param->pkt_data_length_cmpl.status);
+		break;
+	case ESP_GAP_BLE_READ_RSSI_COMPLETE_EVT:
+		ESP_LOGD(TAG, "rssi read: %d status %d",
+				param->read_rssi_cmpl.rssi,
+				param->read_rssi_cmpl.status);
+		report_rssi(param->read_rssi_cmpl.rssi);
 		break;
 	default:
 		ESP_LOGE(TAG, "Unhandled GAP EVT %x", event);
@@ -388,7 +406,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					& ESP_GATT_CHAR_PROP_BIT_NOTIFY)
 						? "y" : "n"
 				);
-				for (characteristic_t *chr = sp->srvdesc->chars;
+				for (const characteristic_t *chr =
+						sp->srvdesc->chars;
 					       	chr->uuid; chr++) {
 					if (char_elem_res[i].uuid.uuid.uuid16
                                        	        	== chr->uuid) {
@@ -507,6 +526,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			ESP_LOGE(TAG, "error esp_ble_gattc_write_char_descr");
 		} else {
 			ESP_LOGI(TAG, "Requested subscription");
+			xTaskCreate(readRssiTask, "read RSSI", 4096*2,
+					NULL, 0, &read_rssi_task);
 			report_state(state_receiving);
 		}
 		break;
@@ -551,6 +572,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	case ESP_GATTC_DISCONNECT_EVT:
 		ESP_LOGI(TAG, "ESP_GATTC_DISCONNECT_EVT, reason = %d",
 				p_data->disconnect.reason);
+		vTaskDelete(read_rssi_task);
 		srvlist = NULL;
 		for (handle_t *handle = handles; handle;) {
 			handle_t *old = handle;

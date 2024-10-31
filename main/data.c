@@ -48,18 +48,26 @@ void report_jumbo(data_stash_t *p_ds, int p_num, int8_t *p_samples)
 	}
 }
 
-void report_rbatt(uint8_t p_rbatt)
+void report_rssi(int8_t rssi)
 {
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
-		stash.rbatt = p_rbatt;
+		stash.rssi = rssi;
 		xSemaphoreGive(dataSemaphore);
 	}
 }
 
-void report_lbatt(uint8_t p_lbatt)
+void report_rbatt(uint8_t rbatt)
 {
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
-		stash.lbatt = p_lbatt;
+		stash.rbatt = rbatt;
+		xSemaphoreGive(dataSemaphore);
+	}
+}
+
+void report_lbatt(uint8_t lbatt)
+{
+	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
+		stash.lbatt = lbatt;
 		xSemaphoreGive(dataSemaphore);
 	}
 }

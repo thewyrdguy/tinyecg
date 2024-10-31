@@ -18,11 +18,11 @@ typedef struct {
 
 typedef struct {
 	uint16_t uuid;
-	characteristic_t *chars;
+	const characteristic_t *chars;
 } service_t;
 
 typedef struct {
-	service_t *srvlist;
+	const service_t *srvlist;
 	const char *name;
 	uint16_t uuid;
 } periph_t;

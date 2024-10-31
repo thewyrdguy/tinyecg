@@ -55,7 +55,7 @@ static inline lv_color_t c_swap(lv_color_t o)
 static uint16_t *rawbuf, *clearbuf;
 
 static lv_obj_t *welcome_label, *update_label, *goodbye_label,
-	*rbatt_label, *lbatt_label, *hr_label;
+	*rssi_label, *rbatt_label, *lbatt_label, *hr_label;
 static lv_obj_t *mframe, *sframe;
 static data_stash_t old_stash = {};
 
@@ -104,7 +104,7 @@ static void display_grid(lv_obj_t *scr)
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT,
 			c_swap(lv_color_hex(0x007700)));
 
-	lv_obj_t *rssi_label = mklabel(sframe, NULL);
+	rssi_label = mklabel(sframe, NULL);
 	rbatt_label = mklabel(sframe, rssi_label);
 	hr_label = mklabel(sframe, rbatt_label);
 	lv_obj_t *label_4 = mklabel(sframe, hr_label);
@@ -208,14 +208,17 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 				new_stash.name);
 		break;
 	default:
-		if (new_stash.heartrate != old_stash.heartrate)
-			lv_label_set_text_fmt(hr_label, "%d",
-					new_stash.heartrate);
+		if (new_stash.rssi != old_stash.rssi)
+			lv_label_set_text_fmt(rssi_label, "%d",
+					new_stash.rssi);
 		if (new_stash.rbatt != old_stash.rbatt) {
 			uint8_t val = new_stash.rbatt;
 			if (val > 99) val = 99;
 			lv_label_set_text_fmt(rbatt_label, "%d%%", val);
 		}
+		if (new_stash.heartrate != old_stash.heartrate)
+			lv_label_set_text_fmt(hr_label, "%d",
+					new_stash.heartrate);
 		if (new_stash.lbatt != old_stash.lbatt) {
 			uint8_t val = new_stash.lbatt;
 			if (val > 99) val = 99;
