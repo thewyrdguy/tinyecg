@@ -55,7 +55,7 @@ static inline lv_color_t c_swap(lv_color_t o)
 static uint16_t *rawbuf, *clearbuf;
 
 static lv_obj_t *welcome_label, *update_label, *goodbye_label,
-	*batt_label, *hr_label;
+	*rbatt_label, *lbatt_label, *hr_label;
 static lv_obj_t *mframe, *sframe;
 static data_stash_t old_stash = {};
 
@@ -104,23 +104,22 @@ static void display_grid(lv_obj_t *scr)
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT,
 			c_swap(lv_color_hex(0x007700)));
 
-	batt_label = mklabel(sframe, NULL);
-	hr_label = mklabel(sframe, batt_label);
-	lv_obj_t *label_2 = mklabel(sframe, hr_label);
-	lv_obj_t *label_3 = mklabel(sframe, label_2);
-	lv_obj_t *label_4 = mklabel(sframe, label_3);
+	lv_obj_t *rssi_label = mklabel(sframe, NULL);
+	rbatt_label = mklabel(sframe, rssi_label);
+	hr_label = mklabel(sframe, rbatt_label);
+	lv_obj_t *label_4 = mklabel(sframe, hr_label);
 	lv_obj_t *label_5 = mklabel(sframe, label_4);
 	lv_obj_t *label_6 = mklabel(sframe, label_5);
+	lbatt_label = mklabel(sframe, label_6);
 
-	uint8_t val = old_stash.lbatt;
-	if (val > 99) val = 99;
-	lv_label_set_text_fmt(batt_label, "%d%%", val);
+	lv_label_set_text_static(rssi_label, "---");
+	lv_label_set_text_static(rbatt_label, "---");
 	lv_label_set_text_static(hr_label, "---");
-	lv_label_set_text_static(label_2, "2");
-	lv_label_set_text_static(label_3, "3");
 	lv_label_set_text_static(label_4, "4");
 	lv_label_set_text_static(label_5, "5");
 	lv_label_set_text_static(label_6, "6");
+	lv_label_set_text_static(lbatt_label, "---");
+	memset(&old_stash, 0, sizeof(old_stash));
 }
 
 void display_init(lv_display_t* disp) {
@@ -212,10 +211,15 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		if (new_stash.heartrate != old_stash.heartrate)
 			lv_label_set_text_fmt(hr_label, "%d",
 					new_stash.heartrate);
+		if (new_stash.rbatt != old_stash.rbatt) {
+			uint8_t val = new_stash.rbatt;
+			if (val > 99) val = 99;
+			lv_label_set_text_fmt(rbatt_label, "%d%%", val);
+		}
 		if (new_stash.lbatt != old_stash.lbatt) {
 			uint8_t val = new_stash.lbatt;
 			if (val > 99) val = 99;
-			lv_label_set_text_fmt(batt_label, "%d%%", val);
+			lv_label_set_text_fmt(lbatt_label, "%d%%", val);
 		}
 		break;
 	}
