@@ -55,7 +55,7 @@ static inline lv_color_t c_swap(lv_color_t o)
 static uint16_t *rawbuf, *clearbuf;
 
 static lv_obj_t *welcome_label, *update_label, *goodbye_label,
-	*rssi_label, *rbatt_label, *lbatt_label, *hr_label;
+	*rssi_indic, *rbatt_label, *lbatt_label, *hr_label;
 static lv_obj_t *mframe, *sframe;
 static data_stash_t old_stash = {};
 
@@ -93,6 +93,52 @@ static lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
 	return label;
 }
 
+static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
+		void (*event_cb)(lv_event_t *e))
+{
+	lv_obj_t *indic = lv_obj_create(parent);
+	lv_obj_set_size(indic, lv_pct(100), 30);
+	if (after) {
+		lv_obj_align_to(indic, after, LV_ALIGN_OUT_BOTTOM_MID, 0, 3);
+	} else {
+		lv_obj_align(indic, LV_ALIGN_TOP_MID, 0, 0);
+	}
+	lv_obj_set_style_bg_color(indic, c_swap(lv_color_hex(0x007700)),
+				LV_PART_MAIN);
+	lv_obj_set_style_bg_opa(indic, LV_OPA_100, LV_PART_MAIN);
+	lv_obj_add_event_cb(indic, event_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
+	lv_obj_add_flag(indic, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+	return indic;
+}
+
+static void rssi_event_cb(lv_event_t * e)
+{
+	lv_obj_t * obj = lv_event_get_target(e);
+	int8_t value = *(int8_t*)lv_obj_get_user_data(obj);
+	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
+	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
+	if (base_dsc->part != LV_PART_MAIN) return;
+
+	lv_draw_rect_dsc_t draw_dsc;
+	lv_draw_rect_dsc_init(&draw_dsc);
+	draw_dsc.bg_color = lv_color_hex(0);  // black
+	draw_dsc.border_color = lv_color_hex(0xff5555);
+	draw_dsc.border_width = 2;
+	draw_dsc.outline_color = lv_color_hex(0xff0000);
+	draw_dsc.outline_pad = 3;
+	draw_dsc.outline_width = 2;
+
+	lv_area_t a;
+	a.x1 = 0;
+	a.y1 = 0;
+	a.x2 = (value & 1) ? 10 : 20;  // TODO
+	a.y2 = 10;
+	lv_area_t obj_coords;
+	lv_obj_get_coords(obj, &obj_coords);
+	lv_area_align(&obj_coords, &a, LV_ALIGN_CENTER, 0, 0);
+	lv_draw_rect(base_dsc->layer, &draw_dsc, &a);
+}
+
 static void display_grid(lv_obj_t *scr)
 {
 	lv_obj_clean(scr);
@@ -104,15 +150,14 @@ static void display_grid(lv_obj_t *scr)
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT,
 			c_swap(lv_color_hex(0x007700)));
 
-	rssi_label = mklabel(sframe, NULL);
-	rbatt_label = mklabel(sframe, rssi_label);
+	rssi_indic = mkindic(sframe, NULL, rssi_event_cb);
+	rbatt_label = mklabel(sframe, rssi_indic);
 	hr_label = mklabel(sframe, rbatt_label);
 	lv_obj_t *label_4 = mklabel(sframe, hr_label);
 	lv_obj_t *label_5 = mklabel(sframe, label_4);
 	lv_obj_t *label_6 = mklabel(sframe, label_5);
 	lbatt_label = mklabel(sframe, label_6);
 
-	lv_label_set_text_static(rssi_label, "---");
 	lv_label_set_text_static(rbatt_label, "---");
 	lv_label_set_text_static(hr_label, "---");
 	lv_label_set_text_static(label_4, "4");
@@ -128,7 +173,7 @@ void display_init(lv_display_t* disp) {
 	assert(rawbuf != NULL && clearbuf != NULL);
 	memset(clearbuf, 0, RAW_BUF_SIZE);
 	for (int y = 0; y < FHEIGHT; y++) {
-		clearbuf[y * FWIDTH] = lv_color_to_u16(lv_color_hex(0x707070));
+		clearbuf[y * FWIDTH] = lv_color_to_u16(lv_color_hex(0x303030));
 	}
 }
 
@@ -176,6 +221,8 @@ static void display_stop(lv_obj_t *scr)
 }
 
 static uint32_t pos = 0;
+static int oldvpos = 127;
+static int8_t rssi_bars = 0;
 
 void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		uint16_t **pbuf, uint16_t **cbuf)
@@ -208,9 +255,13 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 				new_stash.name);
 		break;
 	default:
-		if (new_stash.rssi != old_stash.rssi)
-			lv_label_set_text_fmt(rssi_label, "%d",
-					new_stash.rssi);
+		if (new_stash.rssi != old_stash.rssi) {
+			rssi_bars = (50 - new_stash.rssi) / 10;
+			if (rssi_bars < 0) rssi_bars = 0;
+			if (rssi_bars > 4) rssi_bars = 4;
+			lv_obj_set_user_data(rssi_indic, &rssi_bars);
+			lv_obj_invalidate(rssi_indic);
+		}
 		if (new_stash.rbatt != old_stash.rbatt) {
 			uint8_t val = new_stash.rbatt;
 			if (val > 99) val = 99;
@@ -227,7 +278,25 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		break;
 	}
 	if (new_stash.state == state_receiving) {
+		int ltop, lbot;
 		memset(rawbuf, 0, RAW_BUF_SIZE);
+		for (int x = 0; x < FWIDTH; x++) {
+			int vpos = 120 - samples[x];
+			if (vpos > FHEIGHT - 1) vpos = FHEIGHT - 1;
+			if (vpos < 0) vpos = 0;
+			if (oldvpos < vpos) {  // old is on the top
+				ltop = oldvpos;
+				lbot = vpos;
+			} else {
+				ltop = vpos;
+				lbot = oldvpos;
+			}
+			for (int y = ltop; y <= lbot; y++) {
+				rawbuf[x + (y * FWIDTH)] = lv_color_to_u16(
+						lv_color_hex(0x00ff00));
+			}
+			oldvpos = vpos;
+		}
 		where->x1 = 5 + pos;
 		where->x2 = 4 + FWIDTH + pos;
 		where->y1 = 5;
