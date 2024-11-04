@@ -4,13 +4,10 @@
 #include "sampling.h"
 #include "data.h"
 
+#if 0
 /* Create a pseudo lv_color_t that will produce byte-swapped r5g6b5 */
+/* We won't use this approach because it breaks antialiasing calculations */
 static inline lv_color_t c_swap(lv_color_t o)
-#if 1
-{
-	return o;
-}
-#else
 {
 	/*
 	   RRRrr... GGGggg.. BBbbb...
@@ -79,10 +76,9 @@ static lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
 	lv_obj_t *label = lv_label_create(parent);
 	lv_obj_set_size(label, lv_pct(100), 30);
 	lv_obj_set_style_text_font(label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(label,
-			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
-	lv_obj_set_style_bg_color(label, c_swap(lv_color_hex(0x007700)),
-				LV_PART_MAIN);
+	lv_obj_set_style_text_color(label, lv_color_hex(0xffffff),
+					LV_PART_MAIN);
+	lv_obj_set_style_bg_color(label, lv_color_hex(0x007700), LV_PART_MAIN);
 	lv_obj_set_style_bg_opa(label, LV_OPA_100, LV_PART_MAIN);
 	lv_obj_set_style_text_align(label, LV_ALIGN_CENTER, LV_PART_MAIN);
 	if (after) {
@@ -103,8 +99,7 @@ static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
 	} else {
 		lv_obj_align(indic, LV_ALIGN_TOP_MID, 0, 0);
 	}
-	lv_obj_set_style_bg_color(indic, c_swap(lv_color_hex(0x007700)),
-				LV_PART_MAIN);
+	lv_obj_set_style_bg_color(indic, lv_color_hex(0x007700), LV_PART_MAIN);
 	lv_obj_set_style_bg_opa(indic, LV_OPA_100, LV_PART_MAIN);
 	lv_obj_add_event_cb(indic, event_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
 	lv_obj_add_flag(indic, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
@@ -142,13 +137,12 @@ static void rssi_event_cb(lv_event_t * e)
 static void display_grid(lv_obj_t *scr)
 {
 	lv_obj_clean(scr);
-	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
-				LV_PART_MAIN);
+	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
 
 	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT,
-			c_swap(lv_color_hex(0x770000)));
+			lv_color_hex(0x770000));
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT,
-			c_swap(lv_color_hex(0x007700)));
+			lv_color_hex(0x007700));
 
 	rssi_indic = mkindic(sframe, NULL, rssi_event_cb);
 	rbatt_label = mklabel(sframe, rssi_indic);
@@ -180,8 +174,7 @@ void display_init(lv_display_t* disp) {
 static void display_welcome(lv_obj_t *scr)
 {
 	lv_obj_clean(scr);
-	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x00003F)),
-				LV_PART_MAIN);
+	lv_obj_set_style_bg_color(scr, lv_color_hex(0x00003F), LV_PART_MAIN);
 	welcome_label = lv_label_create(scr);
 	lv_obj_set_width(welcome_label, lv_pct(80));
 	lv_obj_set_height(welcome_label, lv_pct(15));
@@ -190,15 +183,15 @@ static void display_welcome(lv_obj_t *scr)
 	lv_label_set_text_static(welcome_label,
 			"TheWyrdThings https://github.com/thewyrdguy");
 	lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(welcome_label,
-			c_swap(lv_color_hex(0xffffff)), LV_PART_MAIN);
+	lv_obj_set_style_text_color(welcome_label, lv_color_hex(0xffffff),
+			LV_PART_MAIN);
 	update_label = lv_label_create(scr);
 	lv_obj_set_width(update_label, lv_pct(80));
 	lv_obj_set_height(update_label, lv_pct(15));
 	lv_obj_align(update_label, LV_ALIGN_TOP_LEFT, 0, 0);
 	lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(update_label,
-			c_swap(lv_color_hex(0x7F7F7F)), LV_PART_MAIN);
+	lv_obj_set_style_text_color(update_label, lv_color_hex(0x7F7F7F),
+				LV_PART_MAIN);
 	lv_obj_set_style_text_align(update_label, LV_ALIGN_LEFT_MID,
 				LV_PART_MAIN);
 }
@@ -206,8 +199,7 @@ static void display_welcome(lv_obj_t *scr)
 static void display_stop(lv_obj_t *scr)
 {
 	lv_obj_clean(scr);
-	lv_obj_set_style_bg_color(scr, c_swap(lv_color_hex(0x000000)),
-				LV_PART_MAIN);
+	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
 	goodbye_label = lv_label_create(scr);
 	lv_obj_set_width(goodbye_label, lv_pct(80));
 	lv_obj_set_height(goodbye_label, lv_pct(15));
@@ -216,8 +208,8 @@ static void display_stop(lv_obj_t *scr)
 	lv_label_set_text_static(goodbye_label,
 			"Did not find anything, shutting down to save power.");
 	lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(goodbye_label,
-			c_swap(lv_color_hex(0xff0000)), LV_PART_MAIN);
+	lv_obj_set_style_text_color(goodbye_label, lv_color_hex(0xff0000),
+			LV_PART_MAIN);
 }
 
 static uint32_t pos = 0;
