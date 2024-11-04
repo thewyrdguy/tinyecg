@@ -88,7 +88,7 @@ static LV_STYLE_CONST_INIT(indic_style,
 		LV_STYLE_CONST_PAD_LEFT(2),
 		LV_STYLE_CONST_PAD_RIGHT(2),
 		LV_STYLE_CONST_RADIUS(0),
-		LV_STYLE_CONST_BG_OPA(LV_OPA_0),
+		LV_STYLE_CONST_BORDER_WIDTH(0),
 		LV_STYLE_CONST_TEXT_ALIGN(LV_ALIGN_CENTER),
 		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
 		LV_STYLE_CONST_PROPS_END
@@ -120,23 +120,21 @@ static void rssi_event_cb(lv_event_t * e)
 	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
 	if (base_dsc->part != LV_PART_MAIN) return;
 
+	lv_area_t draw_task_area;
+	lv_draw_task_get_area(draw_task, &draw_task_area);
+
 	lv_draw_rect_dsc_t draw_dsc;
 	lv_draw_rect_dsc_init(&draw_dsc);
-	draw_dsc.bg_color = lv_color_hex(0);  // black
-	draw_dsc.border_color = lv_color_hex(0xff5555);
+	draw_dsc.border_color = lv_color_make(0, 255, 0);
 	draw_dsc.border_width = 2;
-	draw_dsc.outline_color = lv_color_hex(0xff0000);
-	draw_dsc.outline_pad = 3;
-	draw_dsc.outline_width = 2;
+	draw_dsc.bg_color = lv_color_make(0, 128, 0);
 
 	lv_area_t a;
 	a.x1 = 0;
 	a.y1 = 0;
-	a.x2 = (value & 1) ? 10 : 20;  // TODO
-	a.y2 = 10;
-	lv_area_t obj_coords;
-	lv_obj_get_coords(obj, &obj_coords);
-	lv_area_align(&obj_coords, &a, LV_ALIGN_CENTER, 0, 0);
+	a.x2 = value * 5;
+	a.y2 = 25;
+	lv_area_align(&draw_task_area, &a, LV_ALIGN_LEFT_MID, 0, 0);
 	lv_draw_rect(base_dsc->layer, &draw_dsc, &a);
 }
 
