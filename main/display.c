@@ -1,6 +1,7 @@
 #include <string.h>
 #include <esp_heap_caps.h>
 #include <lvgl.h>
+#include <misc/lv_style.h>
 #include "sampling.h"
 #include "data.h"
 
@@ -56,60 +57,65 @@ static lv_obj_t *welcome_label, *update_label, *goodbye_label,
 static lv_obj_t *mframe, *sframe;
 static data_stash_t old_stash = {};
 
+static LV_STYLE_CONST_INIT(frame_style,
+	((static lv_style_const_prop_t []){
+		LV_STYLE_CONST_PAD_TOP(5),
+		LV_STYLE_CONST_PAD_BOTTOM(5),
+		LV_STYLE_CONST_PAD_LEFT(5),
+		LV_STYLE_CONST_PAD_RIGHT(5),
+		LV_STYLE_CONST_RADIUS(5),
+		LV_STYLE_CONST_BORDER_WIDTH(2),
+		LV_STYLE_CONST_BORDER_COLOR(LV_COLOR_MAKE(64, 64, 64)),
+		LV_STYLE_CONST_BORDER_OPA(LV_OPA_100),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_0),
+		LV_STYLE_CONST_PROPS_END
+	}));
+
 static lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
-		int32_t w, int32_t h, lv_color_t bcolour)
+		int32_t w, int32_t h)
 {
 	lv_obj_t *frame = lv_obj_create(parent);
+	lv_obj_add_style(frame, &frame_style, LV_PART_MAIN);
 	lv_obj_set_align(frame, align);
 	lv_obj_set_size(frame, w, h);
-	lv_obj_set_style_bg_opa(frame, LV_OPA_0, LV_PART_MAIN);
-	lv_obj_set_style_border_color(frame, bcolour, LV_PART_MAIN);
-	lv_obj_set_style_border_opa(frame, LV_OPA_100, LV_PART_MAIN);
-	lv_obj_set_style_border_width(frame, 2, LV_PART_MAIN);
-	lv_obj_set_style_radius(frame, 5, LV_PART_MAIN);
-	lv_obj_set_style_pad_all(frame, 5, LV_PART_MAIN);
 	return frame;
 }
 
-static lv_obj_t *mklabel(lv_obj_t *parent, lv_obj_t *after)
-{
-	lv_obj_t *label = lv_label_create(parent);
-	lv_obj_set_size(label, lv_pct(100), 30);
-	lv_obj_set_style_text_font(label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(label, lv_color_hex(0xffffff),
-					LV_PART_MAIN);
-	lv_obj_set_style_bg_color(label, lv_color_hex(0x007700), LV_PART_MAIN);
-	lv_obj_set_style_bg_opa(label, LV_OPA_100, LV_PART_MAIN);
-	lv_obj_set_style_text_align(label, LV_ALIGN_CENTER, LV_PART_MAIN);
-	if (after) {
-		lv_obj_align_to(label, after, LV_ALIGN_OUT_BOTTOM_MID, 0, 3);
-	} else {
-		lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 0);
-	}
-	return label;
-}
+static LV_STYLE_CONST_INIT(indic_style,
+	((static lv_style_const_prop_t []){
+		LV_STYLE_CONST_PAD_TOP(2),
+		LV_STYLE_CONST_PAD_BOTTOM(2),
+		LV_STYLE_CONST_PAD_LEFT(2),
+		LV_STYLE_CONST_PAD_RIGHT(2),
+		LV_STYLE_CONST_RADIUS(0),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_0),
+		LV_STYLE_CONST_TEXT_ALIGN(LV_ALIGN_CENTER),
+		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
+		LV_STYLE_CONST_PROPS_END
+	}));
 
-static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
-		void (*event_cb)(lv_event_t *e))
+static lv_obj_t *mkindic(lv_obj_t *(*creator)(lv_obj_t *parent), lv_obj_t *parent, lv_obj_t *after, void (*event_cb)(lv_event_t *e))
 {
-	lv_obj_t *indic = lv_obj_create(parent);
+	lv_obj_t *indic = (*creator)(parent);
+	lv_obj_add_style(indic, &indic_style, LV_PART_MAIN);
 	lv_obj_set_size(indic, lv_pct(100), 30);
 	if (after) {
 		lv_obj_align_to(indic, after, LV_ALIGN_OUT_BOTTOM_MID, 0, 3);
 	} else {
 		lv_obj_align(indic, LV_ALIGN_TOP_MID, 0, 0);
 	}
-	lv_obj_set_style_bg_color(indic, lv_color_hex(0x007700), LV_PART_MAIN);
-	lv_obj_set_style_bg_opa(indic, LV_OPA_100, LV_PART_MAIN);
-	lv_obj_add_event_cb(indic, event_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
-	lv_obj_add_flag(indic, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+	if (event_cb) {
+		lv_obj_add_event_cb(indic, event_cb, LV_EVENT_DRAW_TASK_ADDED,
+				NULL);
+		lv_obj_add_flag(indic, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+	}
 	return indic;
 }
 
 static void rssi_event_cb(lv_event_t * e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
-	int8_t value = *(int8_t*)lv_obj_get_user_data(obj);
+	int value = (intptr_t)lv_obj_get_user_data(obj);
 	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
 	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
 	if (base_dsc->part != LV_PART_MAIN) return;
@@ -139,18 +145,16 @@ static void display_grid(lv_obj_t *scr)
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
 
-	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT,
-			lv_color_hex(0x770000));
-	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT,
-			lv_color_hex(0x007700));
+	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
+	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT);
 
-	rssi_indic = mkindic(sframe, NULL, rssi_event_cb);
-	rbatt_label = mklabel(sframe, rssi_indic);
-	hr_label = mklabel(sframe, rbatt_label);
-	lv_obj_t *label_4 = mklabel(sframe, hr_label);
-	lv_obj_t *label_5 = mklabel(sframe, label_4);
-	lv_obj_t *label_6 = mklabel(sframe, label_5);
-	lbatt_label = mklabel(sframe, label_6);
+	rssi_indic = mkindic(lv_obj_create, sframe, NULL, rssi_event_cb);
+	rbatt_label = mkindic(lv_label_create, sframe, rssi_indic, NULL);
+	hr_label = mkindic(lv_label_create, sframe, rbatt_label, NULL);
+	lv_obj_t *label_4 = mkindic(lv_label_create, sframe, hr_label, NULL);
+	lv_obj_t *label_5 = mkindic(lv_label_create, sframe, label_4, NULL);
+	lv_obj_t *label_6 = mkindic(lv_label_create, sframe, label_5, NULL);
+	lbatt_label = mkindic(lv_label_create, sframe, label_6, NULL);
 
 	lv_label_set_text_static(rbatt_label, "---");
 	lv_label_set_text_static(hr_label, "---");
@@ -214,7 +218,6 @@ static void display_stop(lv_obj_t *scr)
 
 static uint32_t pos = 0;
 static int oldvpos = 127;
-static int8_t rssi_bars = 0;
 
 void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		uint16_t **pbuf, uint16_t **cbuf)
@@ -248,10 +251,10 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		break;
 	default:
 		if (new_stash.rssi != old_stash.rssi) {
-			rssi_bars = (50 - new_stash.rssi) / 10;
+			intptr_t rssi_bars = (50 - new_stash.rssi) / 10;
 			if (rssi_bars < 0) rssi_bars = 0;
 			if (rssi_bars > 4) rssi_bars = 4;
-			lv_obj_set_user_data(rssi_indic, &rssi_bars);
+			lv_obj_set_user_data(rssi_indic, (void*)rssi_bars);
 			lv_obj_invalidate(rssi_indic);
 		}
 		if (new_stash.rbatt != old_stash.rbatt) {
