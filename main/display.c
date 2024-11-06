@@ -93,7 +93,6 @@ static void (* const indic_cb[INDICS])(lv_event_t *e) = {
 };
 static lv_obj_t *indic[INDICS] = {};
 
-static lv_obj_t *mframe, *sframe;
 static lv_obj_t *update_label;
 
 static data_stash_t old_stash = {};
@@ -157,10 +156,12 @@ static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
 
 static void display_grid(lv_obj_t *scr)
 {
+	lv_obj_t *sframe;
+
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
 
-	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
+	(void)mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT);
 
 	for (int i = 0; i < INDICS; i++) {
@@ -184,7 +185,7 @@ void display_init(lv_display_t* disp) {
 
 static void display_welcome(lv_obj_t *scr)
 {
-	static lv_obj_t *welcome_label;
+	lv_obj_t *welcome_label;
 
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_hex(0x00003F), LV_PART_MAIN);
@@ -211,7 +212,7 @@ static void display_welcome(lv_obj_t *scr)
 
 static void display_stop(lv_obj_t *scr)
 {
-	static lv_obj_t *goodbye_label;
+	lv_obj_t *goodbye_label;
 
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
