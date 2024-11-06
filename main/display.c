@@ -72,7 +72,7 @@ static void rssi_event_cb(lv_event_t * e)
 	a.y1 = 0;
 	a.x2 = value * 5;
 	a.y2 = 25;
-	lv_area_align(&draw_task_area, &a, LV_ALIGN_LEFT_MID, 0, 0);
+	lv_area_align(&draw_task_area, &a, LV_ALIGN_CENTER, 0, 0);
 	lv_draw_rect(base_dsc->layer, &draw_dsc, &a);
 }
 
@@ -159,7 +159,7 @@ static void display_grid(lv_obj_t *scr)
 	lv_obj_t *sframe;
 
 	lv_obj_clean(scr);
-	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
+	lv_obj_set_style_bg_color(scr, lv_color_black(), LV_PART_MAIN);
 
 	(void)mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT);
@@ -179,7 +179,8 @@ void display_init(lv_display_t* disp) {
 	assert(rawbuf != NULL && clearbuf != NULL);
 	memset(clearbuf, 0, RAW_BUF_SIZE);
 	for (int y = 0; y < FHEIGHT; y++) {
-		clearbuf[y * FWIDTH] = lv_color_to_u16(lv_color_hex(0x303030));
+		clearbuf[y * FWIDTH] =
+			lv_color_to_u16(lv_color_make(32, 32, 32));
 	}
 }
 
@@ -188,7 +189,7 @@ static void display_welcome(lv_obj_t *scr)
 	lv_obj_t *welcome_label;
 
 	lv_obj_clean(scr);
-	lv_obj_set_style_bg_color(scr, lv_color_hex(0x00003F), LV_PART_MAIN);
+	lv_obj_set_style_bg_color(scr, lv_color_make(0, 0, 64), LV_PART_MAIN);
 	welcome_label = lv_label_create(scr);
 	lv_obj_set_width(welcome_label, lv_pct(80));
 	lv_obj_set_height(welcome_label, lv_pct(15));
@@ -204,7 +205,7 @@ static void display_welcome(lv_obj_t *scr)
 	lv_obj_set_height(update_label, lv_pct(15));
 	lv_obj_align(update_label, LV_ALIGN_TOP_LEFT, 0, 0);
 	//lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(update_label, lv_color_hex(0x7F7F7F),
+	lv_obj_set_style_text_color(update_label, lv_color_make(128, 128, 128),
 				LV_PART_MAIN);
 	lv_obj_set_style_text_align(update_label, LV_ALIGN_LEFT_MID,
 				LV_PART_MAIN);
@@ -215,7 +216,7 @@ static void display_stop(lv_obj_t *scr)
 	lv_obj_t *goodbye_label;
 
 	lv_obj_clean(scr);
-	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
+	lv_obj_set_style_bg_color(scr, lv_color_black(), LV_PART_MAIN);
 	goodbye_label = lv_label_create(scr);
 	lv_obj_set_width(goodbye_label, lv_pct(80));
 	lv_obj_set_height(goodbye_label, lv_pct(15));
@@ -224,7 +225,7 @@ static void display_stop(lv_obj_t *scr)
 	lv_label_set_text_static(goodbye_label,
 			"Did not find anything, shutting down to save power.");
 	//lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(goodbye_label, lv_color_hex(0xff0000),
+	lv_obj_set_style_text_color(goodbye_label, lv_color_make(255, 0, 0),
 			LV_PART_MAIN);
 }
 
@@ -300,7 +301,7 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 			}
 			for (int y = ltop; y <= lbot; y++) {
 				rawbuf[x + (y * FWIDTH)] = lv_color_to_u16(
-						lv_color_hex(0x00ff00));
+						lv_color_make(0, 255, 0));
 			}
 			oldvpos = vpos;
 		}
