@@ -50,11 +50,52 @@ static inline lv_color_t c_swap(lv_color_t o)
 #define RAW_BUF_SIZE (FWIDTH * FHEIGHT \
                 * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565))
 
+static void rssi_event_cb(lv_event_t * e)
+{
+	lv_obj_t * obj = lv_event_get_target(e);
+	int value = (intptr_t)lv_obj_get_user_data(obj);
+	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
+	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
+	if (base_dsc->part != LV_PART_MAIN) return;
+
+	lv_area_t draw_task_area;
+	lv_draw_task_get_area(draw_task, &draw_task_area);
+
+	lv_draw_rect_dsc_t draw_dsc;
+	lv_draw_rect_dsc_init(&draw_dsc);
+	draw_dsc.border_color = lv_color_make(0, 255, 0);
+	draw_dsc.border_width = 2;
+	draw_dsc.bg_color = lv_color_make(0, 128, 0);
+
+	lv_area_t a;
+	a.x1 = 0;
+	a.y1 = 0;
+	a.x2 = value * 5;
+	a.y2 = 25;
+	lv_area_align(&draw_task_area, &a, LV_ALIGN_LEFT_MID, 0, 0);
+	lv_draw_rect(base_dsc->layer, &draw_dsc, &a);
+}
+
 static uint16_t *rawbuf, *clearbuf;
 
-static lv_obj_t *welcome_label, *update_label, *goodbye_label,
-	*rssi_indic, *rbatt_label, *lbatt_label, *hr_label;
+enum {
+	RSSI = 0,
+	RBATT,
+	HR,
+	L3,
+	L4,
+	L5,
+	LBATT,
+	INDICS
+};
+static void (* const indic_cb[INDICS])(lv_event_t *e) = {
+	rssi_event_cb,
+};
+static lv_obj_t *indic[INDICS] = {};
+
 static lv_obj_t *mframe, *sframe;
+static lv_obj_t *update_label;
+
 static data_stash_t old_stash = {};
 
 static LV_STYLE_CONST_INIT(frame_style,
@@ -114,32 +155,6 @@ static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
 	return indic;
 }
 
-static void rssi_event_cb(lv_event_t * e)
-{
-	lv_obj_t * obj = lv_event_get_target(e);
-	int value = (intptr_t)lv_obj_get_user_data(obj);
-	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	if (base_dsc->part != LV_PART_MAIN) return;
-
-	lv_area_t draw_task_area;
-	lv_draw_task_get_area(draw_task, &draw_task_area);
-
-	lv_draw_rect_dsc_t draw_dsc;
-	lv_draw_rect_dsc_init(&draw_dsc);
-	draw_dsc.border_color = lv_color_make(0, 255, 0);
-	draw_dsc.border_width = 2;
-	draw_dsc.bg_color = lv_color_make(0, 128, 0);
-
-	lv_area_t a;
-	a.x1 = 0;
-	a.y1 = 0;
-	a.x2 = value * 5;
-	a.y2 = 25;
-	lv_area_align(&draw_task_area, &a, LV_ALIGN_LEFT_MID, 0, 0);
-	lv_draw_rect(base_dsc->layer, &draw_dsc, &a);
-}
-
 static void display_grid(lv_obj_t *scr)
 {
 	lv_obj_clean(scr);
@@ -148,20 +163,12 @@ static void display_grid(lv_obj_t *scr)
 	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT);
 
-	rssi_indic = mkindic(sframe, NULL, rssi_event_cb);
-	rbatt_label = mkindic(sframe, rssi_indic, NULL);
-	hr_label = mkindic(sframe, rbatt_label, NULL);
-	lv_obj_t *label_4 = mkindic(sframe, hr_label, NULL);
-	lv_obj_t *label_5 = mkindic(sframe, label_4, NULL);
-	lv_obj_t *label_6 = mkindic(sframe, label_5, NULL);
-	lbatt_label = mkindic(sframe, label_6, NULL);
+	for (int i = 0; i < INDICS; i++) {
+		indic[i] = mkindic(sframe, i ? indic[i - 1] : NULL,
+				indic_cb[i]);
+		if (i) lv_label_set_text_fmt(indic[i], "-%d-", i);
+	}
 
-	lv_label_set_text_static(rbatt_label, "---");
-	lv_label_set_text_static(hr_label, "---");
-	lv_label_set_text_static(label_4, "4");
-	lv_label_set_text_static(label_5, "5");
-	lv_label_set_text_static(label_6, "6");
-	lv_label_set_text_static(lbatt_label, "---");
 	memset(&old_stash, 0, sizeof(old_stash));
 }
 
@@ -177,6 +184,8 @@ void display_init(lv_display_t* disp) {
 
 static void display_welcome(lv_obj_t *scr)
 {
+	static lv_obj_t *welcome_label;
+
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_hex(0x00003F), LV_PART_MAIN);
 	welcome_label = lv_label_create(scr);
@@ -186,14 +195,14 @@ static void display_welcome(lv_obj_t *scr)
 	lv_label_set_long_mode(welcome_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 	lv_label_set_text_static(welcome_label,
 			"TheWyrdThings https://github.com/thewyrdguy");
-	lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
-	lv_obj_set_style_text_color(welcome_label, lv_color_hex(0xffffff),
+	//lv_obj_set_style_text_font(welcome_label, &lv_font_montserrat_28, 0);
+	lv_obj_set_style_text_color(welcome_label, lv_color_white(),
 			LV_PART_MAIN);
 	update_label = lv_label_create(scr);
 	lv_obj_set_width(update_label, lv_pct(80));
 	lv_obj_set_height(update_label, lv_pct(15));
 	lv_obj_align(update_label, LV_ALIGN_TOP_LEFT, 0, 0);
-	lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
+	//lv_obj_set_style_text_font(update_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_style_text_color(update_label, lv_color_hex(0x7F7F7F),
 				LV_PART_MAIN);
 	lv_obj_set_style_text_align(update_label, LV_ALIGN_LEFT_MID,
@@ -202,6 +211,8 @@ static void display_welcome(lv_obj_t *scr)
 
 static void display_stop(lv_obj_t *scr)
 {
+	static lv_obj_t *goodbye_label;
+
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
 	goodbye_label = lv_label_create(scr);
@@ -211,7 +222,7 @@ static void display_stop(lv_obj_t *scr)
 	lv_label_set_long_mode(goodbye_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 	lv_label_set_text_static(goodbye_label,
 			"Did not find anything, shutting down to save power.");
-	lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
+	//lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_style_text_color(goodbye_label, lv_color_hex(0xff0000),
 			LV_PART_MAIN);
 }
@@ -254,21 +265,21 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 			intptr_t rssi_bars = (50 - new_stash.rssi) / 10;
 			if (rssi_bars < 0) rssi_bars = 0;
 			if (rssi_bars > 4) rssi_bars = 4;
-			lv_obj_set_user_data(rssi_indic, (void*)rssi_bars);
-			lv_obj_invalidate(rssi_indic);
+			lv_obj_set_user_data(indic[RSSI], (void*)rssi_bars);
+			lv_obj_invalidate(indic[RSSI]);
 		}
 		if (new_stash.rbatt != old_stash.rbatt) {
 			uint8_t val = new_stash.rbatt;
 			if (val > 99) val = 99;
-			lv_label_set_text_fmt(rbatt_label, "%d%%", val);
+			lv_label_set_text_fmt(indic[RBATT], "%d%%", val);
 		}
 		if (new_stash.heartrate != old_stash.heartrate)
-			lv_label_set_text_fmt(hr_label, "%d",
+			lv_label_set_text_fmt(indic[HR], "%d",
 					new_stash.heartrate);
 		if (new_stash.lbatt != old_stash.lbatt) {
 			uint8_t val = new_stash.lbatt;
 			if (val > 99) val = 99;
-			lv_label_set_text_fmt(lbatt_label, "%d%%", val);
+			lv_label_set_text_fmt(indic[LBATT], "%d%%", val);
 		}
 		break;
 	}
