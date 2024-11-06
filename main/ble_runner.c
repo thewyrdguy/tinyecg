@@ -55,7 +55,11 @@ static void readRssiTask(void *pvParameter)
 	const TickType_t xFrequency = configTICK_RATE_HZ * 15;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
-		ESP_ERROR_CHECK(esp_ble_gap_read_rssi(gattc_remote_bda));
+		esp_err_t err = esp_ble_gap_read_rssi(gattc_remote_bda);
+		/* Read may happen after disconnect but before kill */
+		if (err != ESP_OK) {
+			ESP_LOGE(TAG, "Read RSSI: ignore error %d ", err);
+		}
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 	}
 }
@@ -570,7 +574,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		ESP_LOGI(TAG, "write char status = %x", p_data->write.status);
 		break;
 	case ESP_GATTC_DISCONNECT_EVT:
-		ESP_LOGI(TAG, "ESP_GATTC_DISCONNECT_EVT, reason = %d",
+		ESP_LOGI(TAG, "Disconnect, reason = %d",
 				p_data->disconnect.reason);
 		vTaskDelete(read_rssi_task);
 		srvlist = NULL;
