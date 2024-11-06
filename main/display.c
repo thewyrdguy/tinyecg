@@ -127,14 +127,15 @@ static lv_obj_t *mkframe(lv_obj_t *parent, lv_align_t align,
 
 static LV_STYLE_CONST_INIT(indic_style,
 	((static lv_style_const_prop_t []){
-		LV_STYLE_CONST_PAD_TOP(2),
-		LV_STYLE_CONST_PAD_BOTTOM(2),
+		LV_STYLE_CONST_PAD_TOP(1),
+		LV_STYLE_CONST_PAD_BOTTOM(1),
 		LV_STYLE_CONST_PAD_LEFT(2),
 		LV_STYLE_CONST_PAD_RIGHT(2),
 		LV_STYLE_CONST_RADIUS(0),
 		LV_STYLE_CONST_BORDER_WIDTH(0),
 		LV_STYLE_CONST_TEXT_ALIGN(LV_ALIGN_CENTER),
-		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
+		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(192, 192, 192)),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_0),
 		LV_STYLE_CONST_PROPS_END
 	}));
 
@@ -143,7 +144,7 @@ static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
 {
 	lv_obj_t *indic = lv_label_create(parent);
 	lv_obj_add_style(indic, &indic_style, LV_PART_MAIN);
-	lv_obj_set_size(indic, lv_pct(100), 30);
+	lv_obj_set_size(indic, lv_pct(100), 29);
 	lv_label_set_text_static(indic, "   ");  // Magic, else no drawing
 	if (after) {
 		lv_obj_align_to(indic, after, LV_ALIGN_OUT_BOTTOM_MID, 0, 3);
