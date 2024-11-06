@@ -52,7 +52,7 @@ static handle_t *handles = NULL;
 static TaskHandle_t read_rssi_task;
 static void readRssiTask(void *pvParameter)
 {
-	const TickType_t xFrequency = configTICK_RATE_HZ * 15;
+	const TickType_t xFrequency = configTICK_RATE_HZ * 5;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
 		esp_err_t err = esp_ble_gap_read_rssi(gattc_remote_bda);
