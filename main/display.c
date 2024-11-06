@@ -271,7 +271,7 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 		}
 		if (new_stash.rbatt != old_stash.rbatt) {
 			uint8_t val = new_stash.rbatt;
-			if (val > 99) val = 99;
+			if (val > 100) val = 100;
 			lv_label_set_text_fmt(indic[RBATT], "%d%%", val);
 		}
 		if (new_stash.heartrate != old_stash.heartrate)
@@ -279,7 +279,7 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 					new_stash.heartrate);
 		if (new_stash.lbatt != old_stash.lbatt) {
 			uint8_t val = new_stash.lbatt;
-			if (val > 99) val = 99;
+			if (val > 100) val = 100;
 			lv_label_set_text_fmt(indic[LBATT], "%d%%", val);
 		}
 		break;
