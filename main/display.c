@@ -94,11 +94,13 @@ static LV_STYLE_CONST_INIT(indic_style,
 		LV_STYLE_CONST_PROPS_END
 	}));
 
-static lv_obj_t *mkindic(lv_obj_t *(*creator)(lv_obj_t *parent), lv_obj_t *parent, lv_obj_t *after, void (*event_cb)(lv_event_t *e))
+static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
+		void (*event_cb)(lv_event_t *e))
 {
-	lv_obj_t *indic = (*creator)(parent);
+	lv_obj_t *indic = lv_label_create(parent);
 	lv_obj_add_style(indic, &indic_style, LV_PART_MAIN);
 	lv_obj_set_size(indic, lv_pct(100), 30);
+	lv_label_set_text_static(indic, "   ");  // Magic, else no drawing
 	if (after) {
 		lv_obj_align_to(indic, after, LV_ALIGN_OUT_BOTTOM_MID, 0, 3);
 	} else {
@@ -146,13 +148,13 @@ static void display_grid(lv_obj_t *scr)
 	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT);
 
-	rssi_indic = mkindic(lv_obj_create, sframe, NULL, rssi_event_cb);
-	rbatt_label = mkindic(lv_label_create, sframe, rssi_indic, NULL);
-	hr_label = mkindic(lv_label_create, sframe, rbatt_label, NULL);
-	lv_obj_t *label_4 = mkindic(lv_label_create, sframe, hr_label, NULL);
-	lv_obj_t *label_5 = mkindic(lv_label_create, sframe, label_4, NULL);
-	lv_obj_t *label_6 = mkindic(lv_label_create, sframe, label_5, NULL);
-	lbatt_label = mkindic(lv_label_create, sframe, label_6, NULL);
+	rssi_indic = mkindic(sframe, NULL, rssi_event_cb);
+	rbatt_label = mkindic(sframe, rssi_indic, NULL);
+	hr_label = mkindic(sframe, rbatt_label, NULL);
+	lv_obj_t *label_4 = mkindic(sframe, hr_label, NULL);
+	lv_obj_t *label_5 = mkindic(sframe, label_4, NULL);
+	lv_obj_t *label_6 = mkindic(sframe, label_5, NULL);
+	lbatt_label = mkindic(sframe, label_6, NULL);
 
 	lv_label_set_text_static(rbatt_label, "---");
 	lv_label_set_text_static(hr_label, "---");
