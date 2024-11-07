@@ -234,6 +234,14 @@ static void display_stop(lv_obj_t *scr)
 			LV_PART_MAIN);
 }
 
+static intptr_t rssi_bars(int8_t rssi)
+{
+	intptr_t bars = (90 + rssi) / 10;
+	if (bars < 0) return 0;
+	if (bars > 4) return 4;
+	return bars;
+}
+
 static uint32_t pos = 0;
 static int oldvpos = 127;
 
@@ -268,11 +276,10 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 				new_stash.name);
 		break;
 	default:
-		if (new_stash.rssi != old_stash.rssi) {
-			intptr_t rssi_bars = (90 + new_stash.rssi) / 10;
-			if (rssi_bars < 0) rssi_bars = 0;
-			if (rssi_bars > 4) rssi_bars = 4;
-			lv_obj_set_user_data(indic[RSSI], (void*)rssi_bars);
+		intptr_t bars;
+		if ((bars = rssi_bars(new_stash.rssi)) !=
+				rssi_bars(old_stash.rssi)) {
+			lv_obj_set_user_data(indic[RSSI], (void*)bars);
 			lv_obj_invalidate(indic[RSSI]);
 		}
 		if (new_stash.rbatt != old_stash.rbatt) {
