@@ -50,12 +50,14 @@ static inline lv_color_t c_swap(lv_color_t o)
 #define RAW_BUF_SIZE (FWIDTH * FHEIGHT \
                 * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565))
 
-static void rssi_event_cb(lv_event_t * e)
+static uint16_t *rawbuf, *clearbuf;
+
+static void rssi_draw_cb(lv_event_t * e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	int value = (intptr_t)lv_obj_get_user_data(obj);
-	lv_color_t colour = (value > 0) ? lv_color_make(0, 255, 0)
-					: lv_color_make(255, 0, 0);
+	lv_color_t colour = (value > 0) ? lv_color_make(0, 128, 0)
+					: lv_color_make(128, 0, 0);
 	lv_color_t dim = lv_color_make(32, 32, 32);
 	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
 	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
@@ -80,7 +82,46 @@ static void rssi_event_cb(lv_event_t * e)
 	}
 }
 
-static uint16_t *rawbuf, *clearbuf;
+static void batt_draw_cb(lv_event_t * e)
+{
+	lv_obj_t * obj = lv_event_get_target(e);
+	int value = (intptr_t)lv_obj_get_user_data(obj);
+	value = value * 36 / 100;
+	if (value < 0) value = 0;
+	if (value > 36) value = 36;
+	lv_color_t colour = (value > 0) ? lv_color_make(0, 128, 0)
+					: lv_color_make(128, 0, 0);
+	lv_color_t dim = lv_color_darken(colour, 50);
+	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
+	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
+	if (base_dsc->part != LV_PART_MAIN) return;
+
+	lv_area_t obj_coords;
+	lv_obj_get_coords(obj, &obj_coords);
+	lv_area_t a = {
+		.x1 = 0,
+		.x2 = 40,
+		.y1 = 0,
+		.y2 = 18,
+	};
+	lv_area_align(&obj_coords, &a, LV_ALIGN_CENTER, 0, 0);
+
+	lv_draw_rect_dsc_t box;
+	lv_draw_rect_dsc_init(&box);
+	box.border_width = 3;
+	box.border_color = colour;
+	box.bg_opa = LV_OPA_0;
+	lv_draw_rect(base_dsc->layer, &box, &a);
+	a.x1 += 2;
+	a.x2 = a.x1 + value;
+	a.y1 += 2;
+	a.y2 -= 2;
+	lv_draw_rect_dsc_t inside;
+	lv_draw_rect_dsc_init(&inside);
+	inside.border_width = 0;
+	inside.bg_color = dim;
+	lv_draw_rect(base_dsc->layer, &inside, &a);
+}
 
 enum {
 	RSSI = 0,
@@ -93,7 +134,13 @@ enum {
 	INDICS
 };
 static void (* const indic_cb[INDICS])(lv_event_t *e) = {
-	rssi_event_cb,
+	rssi_draw_cb,
+	batt_draw_cb,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	batt_draw_cb,
 };
 static lv_obj_t *indic[INDICS] = {};
 
@@ -172,7 +219,7 @@ static void display_grid(lv_obj_t *scr)
 	for (int i = 0; i < INDICS; i++) {
 		indic[i] = mkindic(sframe, i ? indic[i - 1] : NULL,
 				indic_cb[i]);
-		if (i) lv_label_set_text_fmt(indic[i], "-%d-", i);
+		if (!indic_cb[i]) lv_label_set_text_fmt(indic[i], "-%d-", i);
 	}
 
 	memset(&old_stash, 0, sizeof(old_stash));
@@ -283,17 +330,23 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 			lv_obj_invalidate(indic[RSSI]);
 		}
 		if (new_stash.rbatt != old_stash.rbatt) {
-			uint8_t val = new_stash.rbatt;
+			intptr_t val = new_stash.rbatt;
 			if (val > 100) val = 100;
-			lv_label_set_text_fmt(indic[RBATT], "%d%%", val);
+			// lv_label_set_text_fmt(indic[RBATT], "%d%%",
+			//		new_stash.rbatt);
+			lv_obj_set_user_data(indic[RBATT],
+					(void*)((int)new_stash.rbatt));
+			lv_obj_invalidate(indic[RBATT]);
 		}
 		if (new_stash.heartrate != old_stash.heartrate)
 			lv_label_set_text_fmt(indic[HR], "%d",
 					new_stash.heartrate);
 		if (new_stash.lbatt != old_stash.lbatt) {
-			uint8_t val = new_stash.lbatt;
-			if (val > 100) val = 100;
-			lv_label_set_text_fmt(indic[LBATT], "%d%%", val);
+			//lv_label_set_text_fmt(indic[LBATT], "%d%%",
+			//		new_stash.lbatt);
+			lv_obj_set_user_data(indic[LBATT],
+					(void*)((int)new_stash.lbatt));
+			lv_obj_invalidate(indic[LBATT]);
 		}
 		break;
 	}
