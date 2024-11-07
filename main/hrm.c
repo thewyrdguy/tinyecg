@@ -87,7 +87,11 @@ static void hrm_receive(uint8_t *data, size_t datalen)
 	int num = SBUFSIZE;
 	makeSamples(rris, rri, &num, samples);
 	ESP_LOGI(TAG, "Synthesised %d samples", num);
-	report_jumbo(&(data_stash_t){.heartrate = hr}, num, samples);
+	report_jumbo(&(data_stash_t){
+			.energy = energy,
+			.leadoff = (missed > 3),
+			.heartrate = hr,
+			}, num, samples);
 }
 
 static void bat_receive(uint8_t *data, size_t datalen)

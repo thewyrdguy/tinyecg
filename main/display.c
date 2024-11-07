@@ -123,11 +123,58 @@ static void batt_draw_cb(lv_event_t * e)
 	lv_draw_rect(base_dsc->layer, &inside, &a);
 }
 
+static void lead_draw_cb(lv_event_t * e)
+{
+	lv_obj_t * obj = lv_event_get_target(e);
+	bool leadoff = (intptr_t)lv_obj_get_user_data(obj);
+	lv_color_t colour = (leadoff) ? lv_color_make(128, 0, 0)
+					: lv_color_make(0, 128, 0);
+	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
+	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
+	if (base_dsc->part != LV_PART_MAIN) return;
+
+	lv_area_t obj_coords;
+	lv_obj_get_coords(obj, &obj_coords);
+	int ybase = obj_coords.y1 + (obj_coords.y2 - obj_coords.y1) / 2;
+	lv_draw_arc_dsc_t arc;
+	lv_draw_arc_dsc_init(&arc);
+	arc.color = colour;
+	arc.start_angle = 0;
+	arc.end_angle = 360;
+	arc.width = 8;
+	arc.radius = 8;
+	arc.center.y = ybase;
+	for (int i = 0; i <= 1; i++) {
+		if (i) arc.center.x = obj_coords.x2 - 12;
+		else arc.center.x = obj_coords.x1 + 12;
+		lv_draw_arc(base_dsc->layer, &arc);
+	}
+	lv_area_t a = {
+		.x1 = obj_coords.x1 + 12,
+		.x2 = obj_coords.x2 - 12,
+		.y1 = ybase - 2,
+		.y2 = ybase + 2,
+	};
+	lv_draw_rect_dsc_t connect;
+	lv_draw_rect_dsc_init(&connect);
+	connect.border_width = 0;
+	connect.bg_color = colour;
+	lv_draw_rect(base_dsc->layer, &connect, &a);
+	if (leadoff) {  // make a gap in the middle
+		int xbase = obj_coords.x1 +
+			(obj_coords.x2 - obj_coords.x1) / 2;
+		a.x1 = xbase - 4;
+		a.x2 = xbase + 4;
+		connect.bg_color = lv_color_black();
+		lv_draw_rect(base_dsc->layer, &connect, &a);
+	}
+}
+
 enum {
 	RSSI = 0,
 	RBATT,
 	HR,
-	L3,
+	LEADOFF,
 	L4,
 	L5,
 	LBATT,
@@ -136,8 +183,8 @@ enum {
 static void (* const indic_cb[INDICS])(lv_event_t *e) = {
 	rssi_draw_cb,
 	batt_draw_cb,
-	NULL,
-	NULL,
+	NULL,  // HR
+	lead_draw_cb,
 	NULL,
 	NULL,
 	batt_draw_cb,
@@ -338,9 +385,17 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 					(void*)((int)new_stash.rbatt));
 			lv_obj_invalidate(indic[RBATT]);
 		}
-		if (new_stash.heartrate != old_stash.heartrate)
+		if (new_stash.heartrate != old_stash.heartrate) {
 			lv_label_set_text_fmt(indic[HR], "%d",
 					new_stash.heartrate);
+		}
+		if (new_stash.leadoff != old_stash.leadoff) {
+			//lv_label_set_text_fmt(indic[LEADOFF], "%c",
+			//		new_stash.leadoff ? 'X' : 'O');
+			lv_obj_set_user_data(indic[LEADOFF],
+					(void*)((int)new_stash.leadoff));
+			lv_obj_invalidate(indic[LEADOFF]);
+		}
 		if (new_stash.lbatt != old_stash.lbatt) {
 			//lv_label_set_text_fmt(indic[LBATT], "%d%%",
 			//		new_stash.lbatt);
