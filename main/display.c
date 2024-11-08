@@ -66,20 +66,26 @@ static void signal_draw_cb(lv_event_t * e)
 
 	lv_area_t obj_coords;
 	lv_obj_get_coords(obj, &obj_coords);
-	lv_draw_line_dsc_t line;
-	lv_draw_line_dsc_init(&line);
-	line.color = colour;
-	line.width = 1;
+	static lv_draw_line_dsc_t line[FMAX];
+	static bool first = true;
+	if (first) {
+		for (int i = 0; i < FMAX; i++) {
+			lv_draw_line_dsc_init(&(line[i]));
+			line[i].color = colour;
+			line[i].width = 1;
+			line[i].p1.x = obj_coords.x1 + i;
+			line[i].p2.x = obj_coords.x1 + i;
+		}
+		first = false;
+	}
 	for (int x = 0; x < FWIDTH; x++) {
 		int vpos = 120 - samples[x];
 		if (vpos > FHEIGHT - 1) vpos = FHEIGHT - 1;
 		if (vpos < 0) vpos = 0;
 
-		line.p1.x = obj_coords.x1 + pos + x;
-		line.p2.x = obj_coords.x1 + pos + x;
-		line.p1.y = obj_coords.y1 + oldvpos;
-		line.p2.y = obj_coords.y1 + vpos;
-		lv_draw_line(base_dsc->layer, &line);
+		line[pos + x].p1.y = obj_coords.y1 + oldvpos;
+		line[pos + x].p2.y = obj_coords.y1 + vpos;
+		lv_draw_line(base_dsc->layer, &line[pos + x]);
 		oldvpos = vpos;
 	}
 }
