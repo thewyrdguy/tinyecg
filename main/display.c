@@ -47,50 +47,54 @@ static inline lv_color_t c_swap(lv_color_t o)
 #define FWIDTH (SPS / FPS)
 #define FHEIGHT (HEIGHT - 10)
 #define FMAX (MFWIDTH - 10)
-#define RAW_BUF_SIZE (FWIDTH * FHEIGHT \
-                * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565))
+#define SLICES (FMAX / FWIDTH)
+#define Y0 (FHEIGHT / 2)
 
-static lv_obj_t *mframe;
-static int8_t samples[FWIDTH];
-static int pos = 0;
-static int oldvpos = 127;
+static int8_t samples[FWIDTH] = {};
+static int oldvpos = Y0;
 
-static void signal_draw_cb(lv_event_t * e)
+static void slice_draw_cb(lv_event_t *e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
-	int8_t *samples = (int8_t*)lv_obj_get_user_data(obj);
-	lv_color_t colour = lv_color_make(0, 255, 0);
+	//int8_t *samples = (int8_t*)lv_obj_get_user_data(obj);
 	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
 	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
 	if (base_dsc->part != LV_PART_MAIN) return;
 
 	lv_area_t obj_coords;
 	lv_obj_get_coords(obj, &obj_coords);
-	static lv_draw_line_dsc_t line[FMAX];
-	static bool first = true;
-	if (first) {
-		for (int i = 0; i < FMAX; i++) {
-			lv_draw_line_dsc_init(&(line[i]));
-			line[i].color = colour;
-			line[i].width = 1;
-			line[i].p1.x = obj_coords.x1 + i;
-			line[i].p2.x = obj_coords.x1 + i;
-		}
-		first = false;
+	lv_draw_line_dsc_t line;
+	lv_draw_line_dsc_init(&line);
+	line.color = lv_color_make(0, 255, 0);
+	line.width = 1;
+
+#if 1
+	for (int i = 0; i < 2; i++) {
+		line.p1.x = obj_coords.x1;
+		line.p2.x = obj_coords.x2;
+		line.p1.y = obj_coords.y1 + (i * 5);
+		line.p2.y = obj_coords.y1 + (i * 5) + 5;
+		lv_draw_line(base_dsc->layer, &line);
 	}
+#else
 	for (int x = 0; x < FWIDTH; x++) {
-		int vpos = 120 - samples[x];
+		int vpos = Y0 - samples[x];
 		if (vpos > FHEIGHT - 1) vpos = FHEIGHT - 1;
 		if (vpos < 0) vpos = 0;
 
-		line[pos + x].p1.y = obj_coords.y1 + oldvpos;
-		line[pos + x].p2.y = obj_coords.y1 + vpos;
-		lv_draw_line(base_dsc->layer, &line[pos + x]);
+		line.p1.x = obj_coords.x1 + x;
+		line.p2.x = obj_coords.x1 + x;
+		line.p1.y = obj_coords.y1 + oldvpos;
+		line.p2.y = obj_coords.y1 + vpos;
+		lv_draw_line(base_dsc->layer, &line);
 		oldvpos = vpos;
 	}
+#endif
 }
 
-static void rssi_draw_cb(lv_event_t * e)
+static lv_obj_t *slice[SLICES] = {};
+
+static void rssi_draw_cb(lv_event_t *e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	int value = (intptr_t)lv_obj_get_user_data(obj);
@@ -120,7 +124,7 @@ static void rssi_draw_cb(lv_event_t * e)
 	}
 }
 
-static void batt_draw_cb(lv_event_t * e)
+static void batt_draw_cb(lv_event_t *e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	int value = (intptr_t)lv_obj_get_user_data(obj);
@@ -161,7 +165,7 @@ static void batt_draw_cb(lv_event_t * e)
 	lv_draw_rect(base_dsc->layer, &inside, &a);
 }
 
-static void lead_draw_cb(lv_event_t * e)
+static void lead_draw_cb(lv_event_t *e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	bool leadoff = (intptr_t)lv_obj_get_user_data(obj);
@@ -235,10 +239,10 @@ static data_stash_t old_stash = {};
 
 static LV_STYLE_CONST_INIT(frame_style,
 	((static lv_style_const_prop_t []){
-		LV_STYLE_CONST_PAD_TOP(5),
-		LV_STYLE_CONST_PAD_BOTTOM(5),
-		LV_STYLE_CONST_PAD_LEFT(5),
-		LV_STYLE_CONST_PAD_RIGHT(5),
+		LV_STYLE_CONST_PAD_TOP(3),
+		LV_STYLE_CONST_PAD_BOTTOM(3),
+		LV_STYLE_CONST_PAD_LEFT(3),
+		LV_STYLE_CONST_PAD_RIGHT(3),
 		LV_STYLE_CONST_RADIUS(5),
 		LV_STYLE_CONST_BORDER_WIDTH(2),
 		LV_STYLE_CONST_BORDER_COLOR(LV_COLOR_MAKE(64, 64, 64)),
@@ -291,21 +295,54 @@ static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
 	return indic;
 }
 
+static LV_STYLE_CONST_INIT(slice_style,
+	((static lv_style_const_prop_t []){
+	 	LV_STYLE_CONST_OUTLINE_WIDTH(0),
+		LV_STYLE_CONST_PAD_TOP(0),
+		LV_STYLE_CONST_PAD_BOTTOM(0),
+		LV_STYLE_CONST_PAD_LEFT(0),
+		LV_STYLE_CONST_PAD_RIGHT(0),
+		LV_STYLE_CONST_RADIUS(0),
+		LV_STYLE_CONST_BORDER_WIDTH(0),
+		LV_STYLE_CONST_BORDER_COLOR(LV_COLOR_MAKE(64, 0, 0)),
+		LV_STYLE_CONST_BORDER_OPA(LV_OPA_100),
+		LV_STYLE_CONST_LINE_OPA(LV_OPA_100),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_0),
+		LV_STYLE_CONST_PROPS_END
+	}));
+
+static lv_obj_t *mkslice(lv_obj_t *parent, lv_obj_t *after)
+{
+	lv_obj_t *slice = lv_label_create(parent);
+	lv_obj_add_style(slice, &slice_style, LV_PART_MAIN);
+	lv_label_set_text_static(slice, " "); /// ????
+	lv_obj_set_size(slice, FWIDTH, FHEIGHT);
+	if (after) {
+		lv_obj_align_to(slice, after, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+	} else {
+		lv_obj_align(slice, LV_ALIGN_LEFT_MID, 0, 0);
+	}
+	lv_obj_add_event_cb(slice, slice_draw_cb, LV_EVENT_DRAW_TASK_ADDED,
+			NULL);
+	lv_obj_add_flag(slice, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+	return slice;
+}
+
 void display_init(lv_display_t* disp) {
 	/* nothing */
 }
 
 static void display_grid(lv_obj_t *scr)
 {
-	lv_obj_t *sframe;
+	lv_obj_t *mframe, *sframe;
 
 	lv_obj_clean(scr);
 	lv_obj_set_style_bg_color(scr, lv_color_black(), LV_PART_MAIN);
 
 	mframe = mkframe(scr, LV_ALIGN_LEFT_MID, MFWIDTH, HEIGHT);
-	lv_obj_add_event_cb(mframe, signal_draw_cb, LV_EVENT_DRAW_TASK_ADDED,
-			NULL);
-	lv_obj_add_flag(mframe, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+	for (int i = 0; i < SLICES; i++) {
+		slice[i] = mkslice(mframe, i ? slice[i - 1] : NULL);
+	}
 
 	sframe = mkframe(scr, LV_ALIGN_RIGHT_MID, SFWIDTH, HEIGHT);
 	for (int i = 0; i < INDICS; i++) {
@@ -370,6 +407,8 @@ static intptr_t rssi_bars(int8_t rssi)
 	return bars;
 }
 
+static int sln = 0;
+
 void display_update(lv_display_t* disp)
 {
 	lv_obj_t *scr = lv_display_get_screen_active(disp);
@@ -399,10 +438,10 @@ void display_update(lv_display_t* disp)
 				new_stash.name);
 		break;
 	case state_receiving:
-		lv_obj_set_user_data(mframe, (void*)samples);
-		lv_obj_invalidate(mframe);
-		pos += FWIDTH;
-		if (pos >= FMAX) pos = 0;
+		lv_obj_set_user_data(slice[sln], (void*)samples);
+		lv_obj_invalidate(slice[sln]);
+		sln++;
+		if (sln >= SLICES) sln = 0;
 
 		intptr_t bars;
 		if ((bars = rssi_bars(new_stash.rssi)) !=
