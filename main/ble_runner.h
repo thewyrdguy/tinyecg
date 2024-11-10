@@ -25,6 +25,8 @@ typedef struct {
 	const service_t *srvlist;
 	const char *name;
 	uint16_t uuid;
+	void (*start)(void);
+	void (*stop)(void);
 } periph_t;
 
 void ble_write(uint16_t handle, uint8_t *data, size_t datalen);
