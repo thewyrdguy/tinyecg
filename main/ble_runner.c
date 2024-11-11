@@ -608,24 +608,16 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 
 void ble_write(uint16_t handle, uint8_t *data, size_t datalen)
 {
-	ESP_LOGI(TAG, "ble_write handle 0x%04hx", handle);
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_INFO);
-/* Write op
-	.wchar_uuid = 0xfff2,
-
-		uint8_t write_char_data[35];
-		for (int i = 0; i < sizeof(write_char_data); ++i) {
-			write_char_data[i] = i % 256;
-		}
-		esp_ble_gattc_write_char(
-			gattc_if,
-			gattc_profile.conn_id,
-			gattc_profile.char_handle,
-			sizeof(write_char_data),
-			write_char_data,
+	ESP_LOGD(TAG, "ble_write handle 0x%04hx", handle);
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_DEBUG);
+	ESP_ERROR_CHECK(esp_ble_gattc_write_char(
+			saved_gattc_if,
+			gattc_conn_id,
+			handle,
+			datalen,
+			data,
 			ESP_GATT_WRITE_TYPE_RSP,
-			ESP_GATT_AUTH_REQ_NONE);
-*/
+			ESP_GATT_AUTH_REQ_NONE));
 }
 
 void ble_runner(const periph_t *periphs[])
