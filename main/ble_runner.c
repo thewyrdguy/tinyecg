@@ -51,6 +51,7 @@ static handle_t *handles = NULL;
 static TaskHandle_t read_rssi_task;
 static void readRssiTask(void *pvParameter)
 {
+	ESP_LOGI(TAG, "readRssiTask running");
 	const TickType_t xFrequency = configTICK_RATE_HZ * 5;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
@@ -448,6 +449,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					sizeof(uint16_t));
 			}
 		}
+		xTaskCreate(readRssiTask, "read RSSI", 4096*2,
+				NULL, 0, &read_rssi_task);
 		if (pp->start) (pp->start)();
 		break;
 	case ESP_GATTC_REG_FOR_NOTIFY_EVT:
@@ -529,8 +532,6 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 			ESP_LOGE(TAG, "error esp_ble_gattc_write_char_descr");
 		} else {
 			ESP_LOGI(TAG, "Requested subscription");
-			xTaskCreate(readRssiTask, "read RSSI", 4096*2,
-					NULL, 0, &read_rssi_task);
 			report_state(state_receiving);
 		}
 		break;
@@ -570,7 +571,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 				sizeof(esp_bd_addr_t), ESP_LOG_INFO);
 		break;
 	case ESP_GATTC_WRITE_CHAR_EVT:
-		ESP_LOGI(TAG, "write char status = %x", p_data->write.status);
+		ESP_LOGD(TAG, "write char status = %x", p_data->write.status);
 		break;
 	case ESP_GATTC_DISCONNECT_EVT:
 		ESP_LOGI(TAG, "Disconnect, reason = %d",

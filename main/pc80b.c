@@ -3,6 +3,7 @@
 #include <freertos/task.h>
 #include <esp_log.h>
 
+#include "data.h"
 #include "ble_runner.h"
 #include "hrm.h"
 
@@ -52,10 +53,10 @@ static void send_cmd(uint8_t opcode, uint8_t *data, uint8_t len)
 	ble_write(write_handle, buf, len + 4);
 }
 
-static TaskHandle_t read_batt_task;
-static void readBattTask(void *pvParameter)
+static TaskHandle_t heartbeat_task;
+static void heartbeatTask(void *pvParameter)
 {
-	const TickType_t xFrequency = configTICK_RATE_HZ * 5;
+	const TickType_t xFrequency = configTICK_RATE_HZ * 15;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
 		send_cmd(0xff, (uint8_t *)"\0", 1);
@@ -99,26 +100,135 @@ static void cmd_time(uint8_t *payload, uint8_t len)
 
 static void cmd_transmode(uint8_t *payload, uint8_t len)
 {
-	ESP_LOGI(TAG, "cmd_transmode");
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_INFO);
+	ESP_LOGD(TAG, "cmd_transmode");
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_DEBUG);
+	struct _mframe {
+		uint8_t devtyp;
+		uint8_t transtype:1;
+		uint8_t pad1:6;
+		uint8_t filtermode:1;
+		uint8_t sn[12];
+	} *d = (struct _mframe *)payload;
+	if (len != sizeof(struct _mframe)) {
+		ESP_LOGE(TAG, "cmd_transmode bad length %hhu, must be %zu",
+				len, sizeof(struct _mframe));
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_ERROR);
+		return;
+	}
+	ESP_LOGI(TAG, "Filter mode %hhu, transtype %hhu",
+			d->filtermode, d->transtype);
+	uint8_t ack = (d->transtype ? 0x01 : 0x00);
+	send_cmd(0x55, &ack, 1);
 }
+
+#define SAMPS 25
+
+static uint8_t prevcseq = 0;
 
 static void cmd_contdata(uint8_t *payload, uint8_t len)
 {
-	ESP_LOGI(TAG, "cmd_contdata");
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_INFO);
+	ESP_LOGD(TAG, "cmd_contdata");
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_DEBUG);
+	struct _cdframe {
+		uint8_t seq;
+		uint8_t data[50];
+		uint8_t hr;
+		uint8_t vol_l;
+		uint8_t vol_h:4;
+		uint8_t gain:3;
+		uint8_t leadoff:1;
+	} __attribute__((packed)) *d = (struct _cdframe *)payload;
+	if ((len != 1) && (len != sizeof(struct _cdframe))) {
+		ESP_LOGE(TAG, "cmd_contdata bad length %hhu, must be 1 or %zu",
+				len, sizeof(struct _cdframe));
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_ERROR);
+		return;
+	}
+	if ((len == 1) || (d->seq % 64 == 0)) { // Stop data or /64, need ACK
+		uint8_t ack[2] = {d->seq, 0x00};
+		send_cmd(0xaa, ack, 2);
+	}
+	if (len == 1) return;
+
+	if (d->seq != (prevcseq + 1)) {
+		ESP_LOGE(TAG, "Cont wrong sequence: prev %hhu, new %hhu",
+				prevcseq, d->seq);
+	}
+	prevcseq = d->seq;
+	uint16_t vol = (d->vol_h << 8) + d->vol_l;
+	int8_t samps[SAMPS];
+	for (int i = 0; i < SAMPS; i++) {
+		samps[i] =((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
+				- 2048) / 4;
+	}
+	report_jumbo(&(data_stash_t){
+			.volume = vol,
+			.gain = d->gain,
+			.mstage = ms_measuring,
+			.mmode = mm_continuous,
+			.leadoff = d->leadoff,
+			.heartrate = d->hr,
+		}, SAMPS, samps);
 }
+
+static uint8_t prevfseq = 0;
 
 static void cmd_fastdata(uint8_t *payload, uint8_t len)
 {
-	ESP_LOGI(TAG, "cmd_fastdata");
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_INFO);
+	ESP_LOGD(TAG, "cmd_fastdata");
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_DEBUG);
+	struct _fdframe {
+		uint8_t seq;
+		uint8_t _unk1;
+		uint8_t pad1:4;
+		uint8_t gain:3;
+		uint8_t pad2:1;
+		uint8_t mstage:4;
+		uint8_t mmode:2;
+		uint8_t channel:2;
+		uint8_t hr;
+		uint8_t datatype:3;
+		uint8_t pad3:4;
+		uint8_t leadoff:1;
+		uint8_t data[50];
+	} __attribute__((packed)) *d = (struct _fdframe *)payload;
+	if (len != sizeof(struct _fdframe)) {
+		ESP_LOGE(TAG, "cmd_contdata bad length %hhu, must be %zu",
+				len, sizeof(struct _fdframe));
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_ERROR);
+		return;
+	}
+	if (d->seq != (prevfseq + 1)) {
+		ESP_LOGE(TAG, "Fast wrong sequence: prev %hhu, new %hhu",
+				prevfseq, d->seq);
+	}
+	prevfseq = d->seq;
+	int8_t samps[SAMPS];
+	for (int i = 0; i < SAMPS; i++) {
+		samps[i] =((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
+				- 2048) / 4;
+	}
+	report_jumbo(&(data_stash_t){
+			.gain = d->gain,
+			.mstage = (enum mstage_e)d->mstage,
+			.mmode = (enum mmode_e)d->mmode,
+			.channel = (enum channel_e)d->channel,
+			.datatype = (enum datatype_e)d->datatype,
+			.leadoff = d->leadoff,
+			.heartrate = d->hr,
+		}, SAMPS, samps);
 }
 
 static void cmd_heartbeat(uint8_t *payload, uint8_t len)
 {
-	ESP_LOGI(TAG, "cmd_heartbeat");
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_INFO);
+	ESP_LOGD(TAG, "cmd_heartbeat");
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_DEBUG);
+	if (len != 1) {
+		ESP_LOGE(TAG, "cmd_heartbeat bad length %hhu, must be 8", len);
+		ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_ERROR);
+		return;
+	}
+	report_rbatt(payload[0] * 33);  // value is from 0 to 3
 }
 
 static void (* const cmdfunc[16])(uint8_t *payload, uint8_t len) = {
@@ -187,8 +297,8 @@ static void start(void)
 {
 	ESP_LOGI(TAG, "start()");
 	wptr = 0;
-	xTaskCreate(readBattTask, "Read remote battery", 4096*2, NULL, 0,
-			&read_batt_task);
+	xTaskCreate(heartbeatTask, "Heartbeat", 4096*2, NULL, 0,
+			&heartbeat_task);
 	send_cmd(0x11, (uint8_t *)"\0\0\0\0\0\0", 6);
 }
 
@@ -196,7 +306,7 @@ static void stop(void)
 {
 	ESP_LOGI(TAG, "stop()");
 	wptr = 0;
-	vTaskDelete(read_batt_task);
+	vTaskDelete(heartbeat_task);
 }
 
 static const characteristic_t main_chars[] = {
