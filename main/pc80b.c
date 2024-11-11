@@ -58,7 +58,7 @@ static void readBattTask(void *pvParameter)
 	const TickType_t xFrequency = configTICK_RATE_HZ * 5;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while (1) {
-		send_cmd(0x11, (uint8_t *)"\0", 1);
+		send_cmd(0xff, (uint8_t *)"\0", 1);
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 	}
 }
@@ -82,7 +82,7 @@ static void cmd_time(uint8_t *payload, uint8_t len)
 		ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_ERROR);
 		return;
 	}
-	struct {
+	struct _td {
 		uint8_t sec;
 		uint8_t min;
 		uint8_t hrs;
@@ -91,7 +91,7 @@ static void cmd_time(uint8_t *payload, uint8_t len)
 		uint8_t yr1;
 		uint8_t yr2;
 		uint8_t lng;
-	} *td = payload;
+	} *td = (struct _td *)payload;
 	uint16_t year = (td->yr2 << 8) | td->yr1;
 	ESP_LOGI(TAG, "Time: %04hu-%02hhu-%02hhu %02hhu:%02hhu:%02hhu",
 			year, td->mon, td->day, td->hrs, td->min, td->sec);
@@ -181,18 +181,20 @@ static void get_write_handle(uint8_t *data, size_t datalen)
 {
 	assert(datalen == sizeof(uint16_t));
 	write_handle = *(uint16_t*)data;
-	send_cmd(0x11, (uint8_t *)"\0\0\0\0\0\0", 6);
 }
 
 static void start(void)
 {
+	ESP_LOGI(TAG, "start()");
 	wptr = 0;
-	xTaskCreate(readBattTask, "read RSSI", 4096*2, NULL, 0,
+	xTaskCreate(readBattTask, "Read remote battery", 4096*2, NULL, 0,
 			&read_batt_task);
+	send_cmd(0x11, (uint8_t *)"\0\0\0\0\0\0", 6);
 }
 
 static void stop(void)
 {
+	ESP_LOGI(TAG, "stop()");
 	wptr = 0;
 	vTaskDelete(read_batt_task);
 }

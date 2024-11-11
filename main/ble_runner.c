@@ -24,8 +24,7 @@
 
 SemaphoreHandle_t btSemaphore;
 
-static const periph_t **pparr;
-static const service_t *srvlist;
+static const periph_t **pparr, *pp;
 
 static uint16_t saved_gattc_if = ESP_GATT_IF_NONE;
 
@@ -118,7 +117,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 					ESP_BLE_AD_TYPE_16SRV_CMPL,
 					&adv_srv_len);
 			ESP_LOGD(TAG, "Device Srv Len %d", adv_srv_len);
-			if (srvlist) {
+			if (pp) {
 				ESP_LOGI(TAG, "Ignoring because have already");
 				break;
 			}
@@ -127,7 +126,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				    && (strlen((pparr[i])->name) == adv_name_len)
 				    && (strncmp((char *)adv_name, (pparr[i])->name,
 						adv_name_len) == 0)) {
-					srvlist = (pparr[i])->srvlist;
+					pp = pparr[i];
 					break;
 				}
 				if (adv_srv_len != sizeof(uint16_t)) {
@@ -137,11 +136,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 				ESP_LOGD(TAG, "Device Srv uuid %04x",
 						adv_srv_uuid);
 				if (adv_srv_uuid == (pparr[i])->uuid) {
-					srvlist = (pparr[i])->srvlist;
+					pp = pparr[i];
 					break;
 				}
 			}
-			if (srvlist) {
+			if (pp) {
 				ESP_LOGI(TAG, "Found %s, stop scan & connect",
 					adv_name_len ? (char*)adv_name
 							: "noname");
@@ -155,7 +154,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			break;
 		case ESP_GAP_SEARCH_INQ_CMPL_EVT:
 			ESP_LOGI(TAG, "Scan completed");
-			if (!srvlist) {
+			if (!pp) {
 				ESP_LOGI(TAG, "Found nothing");
 				xSemaphoreGive(btSemaphore);
 			}
@@ -315,7 +314,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 				p_data->search_res.start_handle,
 				p_data->search_res.end_handle,
 				p_data->search_res.srvc_id.inst_id);
-		for (const service_t *srv = srvlist; srv->uuid; srv++) {
+		for (const service_t *srv = pp->srvlist; srv->uuid; srv++) {
 			if (p_data->search_res.srvc_id.uuid.len
 					== ESP_UUID_LEN_16 &&
 			    p_data->search_res.srvc_id.uuid.uuid.uuid16
@@ -448,8 +447,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					(uint8_t*)&handle->handle,
 					sizeof(uint16_t));
 			}
-			/* unlike srv profs, these stay allocated */
 		}
+		if (pp->start) (pp->start)();
 		break;
 	case ESP_GATTC_REG_FOR_NOTIFY_EVT:
 		ESP_LOGD(TAG, "ESP_GATTC_REG_FOR_NOTIFY_EVT");
@@ -577,7 +576,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		ESP_LOGI(TAG, "Disconnect, reason = %d",
 				p_data->disconnect.reason);
 		vTaskDelete(read_rssi_task);
-		srvlist = NULL;
+		if (pp && (pp->stop)) (pp->stop)();
+		pp = NULL;
 		for (handle_t *handle = handles; handle;) {
 			handle_t *old = handle;
 			handle = handle->next;
