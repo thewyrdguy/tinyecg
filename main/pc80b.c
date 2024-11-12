@@ -53,7 +53,7 @@ static void send_cmd(uint8_t opcode, uint8_t *data, uint8_t len)
 	ble_write(write_handle, buf, len + 4);
 }
 
-static TaskHandle_t heartbeat_task;
+static TaskHandle_t heartbeat_task = 0;
 static void heartbeatTask(void *pvParameter)
 {
 	const TickType_t xFrequency = configTICK_RATE_HZ * 15;
@@ -306,7 +306,8 @@ static void stop(void)
 {
 	ESP_LOGI(TAG, "stop()");
 	wptr = 0;
-	vTaskDelete(heartbeat_task);
+	if (heartbeat_task) vTaskDelete(heartbeat_task);
+	heartbeat_task = 0;
 }
 
 static const characteristic_t main_chars[] = {

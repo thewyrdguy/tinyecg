@@ -48,7 +48,7 @@ void report_jumbo(data_stash_t *p_ds, int p_num, int8_t *p_samples)
 	}
 }
 
-void report_rssi(int8_t rssi)
+void report_rssi(uint8_t rssi)
 {
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
 		stash.rssi = rssi;

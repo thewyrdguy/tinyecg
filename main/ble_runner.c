@@ -48,7 +48,7 @@ typedef struct _handle {
 } handle_t;
 static handle_t *handles = NULL;
 
-static TaskHandle_t read_rssi_task;
+static TaskHandle_t read_rssi_task = 0;
 static void readRssiTask(void *pvParameter)
 {
 	ESP_LOGI(TAG, "readRssiTask running");
@@ -74,6 +74,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 	ESP_LOGD(TAG, "esp_gap_cb(%x, ...) called", event);
 	switch (event) {
 	case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
+		ESP_LOGI(TAG, "Initiate scanning");
 		report_state(state_scanning);
 		esp_ble_gap_start_scanning(SCAN_DURATION);
 		break;
@@ -203,7 +204,10 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		ESP_LOGD(TAG, "rssi read: %d status %d",
 				param->read_rssi_cmpl.rssi,
 				param->read_rssi_cmpl.status);
-		report_rssi(param->read_rssi_cmpl.rssi);
+		int8_t rssi = (90 + param->read_rssi_cmpl.rssi) / 10;
+		if (rssi < 0) rssi = 0;
+		if (rssi > 4) rssi = 4;
+		report_rssi((uint8_t)rssi);
 		break;
 	default:
 		ESP_LOGE(TAG, "Unhandled GAP EVT %x", event);
@@ -576,7 +580,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	case ESP_GATTC_DISCONNECT_EVT:
 		ESP_LOGI(TAG, "Disconnect, reason = %d",
 				p_data->disconnect.reason);
-		vTaskDelete(read_rssi_task);
+		if (read_rssi_task) vTaskDelete(read_rssi_task);
+		read_rssi_task = 0;
 		if (pp && (pp->stop)) (pp->stop)();
 		pp = NULL;
 		for (handle_t *handle = handles; handle;) {

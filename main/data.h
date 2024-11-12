@@ -56,7 +56,7 @@ typedef struct _ds {
 	bool leadoff;
 	uint8_t heartrate;
 #define DYNSIZE (offsetof(struct _ds, rssi) - offsetof(struct _ds, energy))
-	int8_t rssi;
+	uint8_t rssi;
 	uint8_t lbatt;
 	uint8_t rbatt;
 	bool overrun;
@@ -70,7 +70,7 @@ void report_state(enum state_e state);
 void report_periph(char const *name, size_t len);
 void report_found(bool found);
 void report_jumbo(data_stash_t *ds, int num, int8_t *samples);
-void report_rssi(int8_t rssi);
+void report_rssi(uint8_t rssi);
 void report_rbatt(uint8_t rbatt);
 void report_lbatt(uint8_t lbatt);
 void get_stash(data_stash_t *newstash, size_t num, int8_t *samples);
