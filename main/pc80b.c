@@ -148,7 +148,10 @@ static void cmd_contdata(uint8_t *payload, uint8_t len)
 		uint8_t ack[2] = {d->seq, 0x00};
 		send_cmd(0xaa, ack, 2);
 	}
-	if (len == 1) return;
+	if (len == 1) {
+		report_jumbo(&(data_stash_t){0}, 0, NULL);
+		return;
+	}
 
 	if (d->seq != (prevcseq + 1)) {
 		ESP_LOGE(TAG, "Cont wrong sequence: prev %hhu, new %hhu",
@@ -192,6 +195,11 @@ static void cmd_fastdata(uint8_t *payload, uint8_t len)
 		uint8_t leadoff:1;
 		uint8_t data[50];
 	} __attribute__((packed)) *d = (struct _fdframe *)payload;
+	if (len == 6) {
+		ESP_LOGI(TAG, "End frame");
+		report_jumbo(&(data_stash_t){0}, 0, NULL);
+		return;
+	}
 	if (len != sizeof(struct _fdframe)) {
 		ESP_LOGE(TAG, "cmd_contdata bad length %hhu, must be %zu",
 				len, sizeof(struct _fdframe));

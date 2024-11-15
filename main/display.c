@@ -219,6 +219,36 @@ static void mode_draw_cb(lv_event_t * e)
 	}
 }
 
+static void stage_draw_cb(lv_event_t * e)
+{
+	lv_obj_t * obj = lv_event_get_target(e);
+	enum mstage_e stage = (enum mstage_e)lv_obj_get_user_data(obj);
+	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
+	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
+	if (base_dsc->part != LV_PART_MAIN) return;
+
+	lv_color_t colour = (stage == ms_stop) ? lv_color_make(192, 0, 0)
+						: lv_color_make(0, 0, 192);
+	lv_color_t dim = lv_color_make(64, 64, 64);
+	lv_area_t obj_coords;
+	lv_obj_get_coords(obj, &obj_coords);
+
+	lv_draw_rect_dsc_t bar;
+	lv_draw_rect_dsc_init(&bar);
+	bar.border_width = 0;
+	lv_area_t a;
+	for (int i = 0; i < 5; i++) {
+		bar.bg_color = (i <= (int)stage) ? colour : dim;
+		a.x1 = 0;
+		a.x2 = 5;
+		a.y1 = 0;
+		a.y2 = 5;
+		lv_area_align(&obj_coords, &a, LV_ALIGN_LEFT_MID,
+				i * 9 + 8, 0);
+		lv_draw_rect(base_dsc->layer, &(bar), &a);
+	}
+}
+
 enum {
 	RSSI = 0,
 	RBATT,
@@ -235,7 +265,7 @@ static void (* const indic_cb[INDICS])(lv_event_t *e) = {
 	NULL,  // HR
 	lead_draw_cb,
 	mode_draw_cb,
-	NULL,
+	stage_draw_cb,
 	batt_draw_cb,
 };
 static lv_obj_t *indic[INDICS] = {};
@@ -315,7 +345,6 @@ static void display_grid(lv_obj_t *scr)
 	for (int i = 0; i < INDICS; i++) {
 		indic[i] = mkindic(sframe, i ? indic[i - 1] : NULL,
 				indic_cb[i]);
-		if (!indic_cb[i]) lv_label_set_text_fmt(indic[i], "-%d-", i);
 	}
 
 	memset(&old_stash, 0, sizeof(old_stash));
@@ -424,13 +453,22 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 			lv_obj_invalidate(indic[RBATT]);
 		}
 		if (new_stash.heartrate != old_stash.heartrate) {
-			lv_label_set_text_fmt(indic[HR], "%d",
-					new_stash.heartrate);
+			if (new_stash.heartrate) {
+				lv_label_set_text_fmt(indic[HR], "%d",
+						new_stash.heartrate);
+			} else {
+				lv_label_set_text_static(indic[HR], " ");
+			}
 		}
 		if (new_stash.mmode != old_stash.mmode) {
 			lv_obj_set_user_data(indic[MMODE],
 					(void*)((int)new_stash.mmode));
 			lv_obj_invalidate(indic[MMODE]);
+		}
+		if (new_stash.mstage != old_stash.mstage) {
+			lv_obj_set_user_data(indic[MSTAGE],
+					(void*)((int)new_stash.mstage));
+			lv_obj_invalidate(indic[MSTAGE]);
 		}
 		if (new_stash.leadoff != old_stash.leadoff) {
 			//lv_label_set_text_fmt(indic[LEADOFF], "%c",
