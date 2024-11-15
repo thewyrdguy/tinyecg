@@ -106,7 +106,7 @@ void get_stash(data_stash_t *newstash, size_t num, int8_t *samples_p)
 	size_t to_copy, to_repeat, buf_left;
 
 	if (xSemaphoreTake(dataSemaphore, portMAX_DELAY) == pdTRUE) {
-		if (num < amount) {
+		if (num <= amount) {
 			to_copy = num;
 			to_repeat = 0;
 			if (repeated_underrun) {
