@@ -11,7 +11,7 @@
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <freertos/timers.h>
 #include <esp_log.h>
 
 #include "ble_runner.h"
@@ -48,19 +48,14 @@ typedef struct _handle {
 } handle_t;
 static handle_t *handles = NULL;
 
-static TaskHandle_t read_rssi_task = 0;
-static void readRssiTask(void *pvParameter)
+static TimerHandle_t read_rssi_timer;
+static void readRssiCallback(TimerHandle_t xTimer)
 {
-	ESP_LOGI(TAG, "readRssiTask running");
-	const TickType_t xFrequency = configTICK_RATE_HZ * 5;
-	TickType_t xLastWakeTime = xTaskGetTickCount();
-	while (1) {
-		esp_err_t err = esp_ble_gap_read_rssi(gattc_remote_bda);
-		/* Read may happen after disconnect but before kill */
-		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "Read RSSI: ignore error %d ", err);
-		}
-		vTaskDelayUntil(&xLastWakeTime, xFrequency);
+	ESP_LOGI(TAG, "readRssiCallback running");
+	esp_err_t err = esp_ble_gap_read_rssi(gattc_remote_bda);
+	/* Read may happen after disconnect but before kill */
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Read RSSI: ignore error %d ", err);
 	}
 }
 
@@ -453,8 +448,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 					sizeof(uint16_t));
 			}
 		}
-		xTaskCreate(readRssiTask, "read RSSI", 4096*2,
-				NULL, 0, &read_rssi_task);
+		if (xTimerStart(read_rssi_timer, 0) != pdPASS) {
+			ESP_LOGE(TAG, "Failed to start read rssi timer");
+		}
 		if (pp->start) (pp->start)();
 		break;
 	case ESP_GATTC_REG_FOR_NOTIFY_EVT:
@@ -580,8 +576,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 	case ESP_GATTC_DISCONNECT_EVT:
 		ESP_LOGI(TAG, "Disconnect, reason = %d",
 				p_data->disconnect.reason);
-		if (read_rssi_task) vTaskDelete(read_rssi_task);
-		read_rssi_task = 0;
+		if (xTimerIsTimerActive(read_rssi_timer) != pdFALSE) {
+			xTimerStop(read_rssi_timer, 0);
+		}
 		if (pp && (pp->stop)) (pp->stop)();
 		pp = NULL;
 		for (handle_t *handle = handles; handle;) {
@@ -631,6 +628,13 @@ void ble_runner(const periph_t *periphs[])
 	pparr = periphs;
 	btSemaphore = xSemaphoreCreateBinary();
 	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
+	read_rssi_timer = xTimerCreate(
+				"Read RSSI",
+				configTICK_RATE_HZ * 5,
+				pdTRUE,  // repeating timer
+				NULL,
+				readRssiCallback
+			);
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
 		ESP_ERROR_CHECK(nvs_flash_erase());
