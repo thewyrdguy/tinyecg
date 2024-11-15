@@ -123,7 +123,7 @@ static void cmd_transmode(uint8_t *payload, uint8_t len)
 
 #define SAMPS 25
 
-static uint8_t prevcseq = 0;
+static uint8_t nxtcseq = 0;
 
 static void cmd_contdata(uint8_t *payload, uint8_t len)
 {
@@ -153,11 +153,11 @@ static void cmd_contdata(uint8_t *payload, uint8_t len)
 		return;
 	}
 
-	if (d->seq != (prevcseq + 1)) {
+	if (d->seq != nxtcseq) {
 		ESP_LOGE(TAG, "Cont wrong sequence: prev %hhu, new %hhu",
-				prevcseq, d->seq);
+				nxtcseq, d->seq);
 	}
-	prevcseq = d->seq;
+	nxtcseq = d->seq + 1;
 	uint16_t vol = (d->vol_h << 8) + d->vol_l;
 	int8_t samps[SAMPS];
 	for (int i = 0; i < SAMPS; i++) {
@@ -174,7 +174,7 @@ static void cmd_contdata(uint8_t *payload, uint8_t len)
 		}, SAMPS, samps);
 }
 
-static uint8_t prevfseq = 0;
+static uint8_t nxtfseq = 0;
 
 static void cmd_fastdata(uint8_t *payload, uint8_t len)
 {
@@ -206,11 +206,11 @@ static void cmd_fastdata(uint8_t *payload, uint8_t len)
 		ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_ERROR);
 		return;
 	}
-	if (d->seq != (prevfseq + 1)) {
+	if (d->seq != nxtfseq) {
 		ESP_LOGE(TAG, "Fast wrong sequence: prev %hhu, new %hhu",
-				prevfseq, d->seq);
+				nxtfseq, d->seq);
 	}
-	prevfseq = d->seq;
+	nxtfseq = d->seq + 1;
 	int8_t samps[SAMPS];
 	for (int i = 0; i < SAMPS; i++) {
 		samps[i] =((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
