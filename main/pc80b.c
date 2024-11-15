@@ -149,7 +149,7 @@ static void cmd_contdata(uint8_t *payload, uint8_t len)
 		send_cmd(0xaa, ack, 2);
 	}
 	if (len == 1) {
-		report_jumbo(&(data_stash_t){0}, 0, NULL);
+		report_jumbo(&(data_stash_t){.mstage = ms_stop}, 0, NULL);
 		return;
 	}
 
@@ -197,7 +197,7 @@ static void cmd_fastdata(uint8_t *payload, uint8_t len)
 	} __attribute__((packed)) *d = (struct _fdframe *)payload;
 	if (len == 6) {
 		ESP_LOGI(TAG, "End frame");
-		report_jumbo(&(data_stash_t){0}, 0, NULL);
+		report_jumbo(&(data_stash_t){.mstage = ms_stop}, 0, NULL);
 		return;
 	}
 	if (len != sizeof(struct _fdframe)) {
