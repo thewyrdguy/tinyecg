@@ -25,6 +25,7 @@ typedef struct {
 	const service_t *srvlist;
 	const char *name;
 	uint16_t uuid;
+	uint16_t delay;
 	void (*start)(void);
 	void (*stop)(void);
 } periph_t;

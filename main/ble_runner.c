@@ -30,6 +30,7 @@ static uint16_t saved_gattc_if = ESP_GATT_IF_NONE;
 
 uint16_t gattc_conn_id;
 esp_bd_addr_t gattc_remote_bda;
+esp_ble_addr_type_t gattc_ble_addr_type;
 
 typedef struct _srv_profile {
 	struct _srv_profile *next;
@@ -51,12 +52,19 @@ static handle_t *handles = NULL;
 static TimerHandle_t read_rssi_timer;
 static void readRssiCallback(TimerHandle_t xTimer)
 {
-	ESP_LOGI(TAG, "readRssiCallback running");
+	ESP_LOGD(TAG, "readRssiCallback running");
 	esp_err_t err = esp_ble_gap_read_rssi(gattc_remote_bda);
 	/* Read may happen after disconnect but before kill */
 	if (err != ESP_OK) {
 		ESP_LOGE(TAG, "Read RSSI: ignore error %d ", err);
 	}
+}
+static TimerHandle_t connect_timer;
+static void initiateConnectCallback(TimerHandle_t xTimer)
+{
+	ESP_LOGI(TAG, "Initiating connect after delay");
+	esp_ble_gattc_open(saved_gattc_if, gattc_remote_bda,
+			gattc_ble_addr_type, true);
 }
 
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -143,10 +151,15 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 							: "noname");
 				esp_ble_gap_stop_scanning();
 				report_found(true);
-				esp_ble_gattc_open(saved_gattc_if,
-					param->scan_rst.bda,
-					param->scan_rst.ble_addr_type,
-					true);
+				memcpy(&gattc_remote_bda, param->scan_rst.bda,
+					sizeof(esp_bd_addr_t));
+				gattc_ble_addr_type =
+					param->scan_rst.ble_addr_type;
+				xTimerChangePeriod(connect_timer,
+					configTICK_RATE_HZ *
+						((pp->delay) ? pp->delay : 1),
+						0);
+				xTimerStart(connect_timer, 0);
 			}
 			break;
 		case ESP_GAP_SEARCH_INQ_CMPL_EVT:
@@ -634,6 +647,13 @@ void ble_runner(const periph_t *periphs[])
 				pdTRUE,  // repeating timer
 				NULL,
 				readRssiCallback
+			);
+	connect_timer = xTimerCreate(
+				"Connect",
+				1,  // will be set before start
+				pdFALSE,  // one shot timer
+				NULL,
+				initiateConnectCallback
 			);
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

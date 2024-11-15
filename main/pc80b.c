@@ -332,6 +332,7 @@ static const service_t services[] = {
 const periph_t pc80b_desc = {
 	.srvlist = services,
 	.name = "PC80B-BLE",
+	.delay = 3,
 	.start = start,
 	.stop = stop,
 };
