@@ -1,5 +1,6 @@
 #include <string.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 
 #include "ble_runner.h"
 #include "hrm.h"
@@ -25,9 +26,10 @@ static void makeSamples(int rris, uint16_t rri[], int *nump, int8_t sampp[]) {
 	int avail = *nump;
 
 	for (int i = 0; i < rris; i++) {
-		// RR Interval comes in 1/1024 of a second.
+		// RR Interval is expected to come in 1/1024 of a second.
+		// But in realiti is seems to me in milliseconds.
 		// We want SPS (150 / sec) samples.
-		int num = rri[i] * SPS / 1024;
+		int num = rri[i] * SPS / 1000;
 		if (num > avail) num = avail;
 		int to_copy = sizeof(beat);
 		if (to_copy > num) to_copy = num;
@@ -44,8 +46,17 @@ static void makeSamples(int rris, uint16_t rri[], int *nump, int8_t sampp[]) {
 static int8_t samples[SBUFSIZE];
 uint8_t missed = 0;
 
+#ifdef TIME_REPORT
+uint32_t time_start = 0;
+uint32_t rr_sum = 0;
+#endif
+
 static void hrm_receive(uint8_t *data, size_t datalen)
 {
+#ifdef TIME_REPORT
+	if (!time_start) time_start = esp_timer_get_time() / 1000ULL;
+#endif
+
 	ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, datalen, ESP_LOG_DEBUG);
 	uint8_t const *end = data + datalen;
 	uint16_t hr;
@@ -81,9 +92,19 @@ static void hrm_receive(uint8_t *data, size_t datalen)
 		missed++;
 	}
 	ESP_LOGI(TAG, "HR %hu Energy %hu RRIs %d", hr, energy, rris);
-	for (int i = 0; i < rris; i++)
+	for (int i = 0; i < rris; i++) {
 		ESP_LOGI(TAG, "    RRI %hu", rri[i]);
-
+#ifdef TIME_REPORT
+		rr_sum += rri[i];
+#endif
+	}
+#ifdef TIME_REPORT
+	uint32_t elapsed = (esp_timer_get_time() / 1000ULL) - time_start;
+	if (elapsed)
+		ESP_LOGI(TAG, "elapsed %lu rr_sum %lu difference %ld, %ld%%",
+			elapsed, rr_sum, (rr_sum - elapsed),
+			(rr_sum - elapsed) * 100 / elapsed);
+#endif
 	int num = SBUFSIZE;
 	makeSamples(rris, rri, &num, samples);
 	ESP_LOGI(TAG, "Synthesised %d samples", num);
