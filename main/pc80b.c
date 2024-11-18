@@ -161,8 +161,9 @@ static void cmd_contdata(uint8_t *payload, uint8_t len)
 	uint16_t vol = (d->vol_h << 8) + d->vol_l;
 	int8_t samps[SAMPS];
 	for (int i = 0; i < SAMPS; i++) {
-		samps[i] =((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
+		int16_t value = ((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
 				- 2048) / 4;
+		samps[i] = (value < -120) ? -120 : (value > 120) ? 120 : value;
 	}
 	report_jumbo(&(data_stash_t){
 			.volume = vol,
@@ -213,8 +214,9 @@ static void cmd_fastdata(uint8_t *payload, uint8_t len)
 	nxtfseq = d->seq + 1;
 	int8_t samps[SAMPS];
 	for (int i = 0; i < SAMPS; i++) {
-		samps[i] =((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
+		int16_t value = ((d->data[i * 2] + (d->data[i * 2 + 1] << 8))
 				- 2048) / 4;
+		samps[i] = (value < -120) ? -120 : (value > 120) ? 120 : value;
 	}
 	report_jumbo(&(data_stash_t){
 			.gain = d->gain,
