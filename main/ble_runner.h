@@ -26,6 +26,7 @@ typedef struct {
 	const char *name;
 	uint16_t uuid;
 	uint16_t delay;
+	void (*init)(void);
 	void (*start)(void);
 	void (*stop)(void);
 } periph_t;

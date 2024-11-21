@@ -1,6 +1,6 @@
 #include <string.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <freertos/timers.h>
 #include <esp_log.h>
 
 #include "data.h"
@@ -53,15 +53,11 @@ static void send_cmd(uint8_t opcode, uint8_t *data, uint8_t len)
 	ble_write(write_handle, buf, len + 4);
 }
 
-static TaskHandle_t heartbeat_task = 0;
-static void heartbeatTask(void *pvParameter)
+static TimerHandle_t heartbeat_timer = 0;
+static void heartbeatCallback(TimerHandle_t xTimer)
 {
-	const TickType_t xFrequency = configTICK_RATE_HZ * 15;
-	TickType_t xLastWakeTime = xTaskGetTickCount();
-	while (1) {
-		send_cmd(0xff, (uint8_t *)"\0", 1);
-		vTaskDelayUntil(&xLastWakeTime, xFrequency);
-	}
+	ESP_LOGD(TAG, "heartbeatCallback running");
+	send_cmd(0xff, (uint8_t *)"\0", 1);
 }
 
 #define BLE_MAX 512  // 512 is the max size of BLE characteristic value.
@@ -307,17 +303,32 @@ static void start(void)
 {
 	ESP_LOGI(TAG, "start()");
 	wptr = 0;
-	xTaskCreate(heartbeatTask, "Heartbeat", 4096*2, NULL, 0,
-			&heartbeat_task);
+	if (xTimerStart(heartbeat_timer, 0) != pdPASS) {
+		ESP_LOGE(TAG, "failed to start heartbeat_timer");
+	}
 	send_cmd(0x11, (uint8_t *)"\0\0\0\0\0\0", 6);
+	send_cmd(0xff, (uint8_t *)"\0", 1);
 }
 
 static void stop(void)
 {
 	ESP_LOGI(TAG, "stop()");
 	wptr = 0;
-	if (heartbeat_task) vTaskDelete(heartbeat_task);
-	heartbeat_task = 0;
+	if (xTimerIsTimerActive(heartbeat_timer) != pdFALSE) {
+		xTimerStop(heartbeat_timer, 0);
+	}
+}
+
+static void init(void)
+{
+	ESP_LOGI(TAG, "Initializing heartbeat timer");
+	heartbeat_timer = xTimerCreate(
+			"Send heartbeat command",
+			configTICK_RATE_HZ * 15,
+			pdTRUE,  // repeating timer
+			NULL,
+			heartbeatCallback
+		);
 }
 
 static const characteristic_t main_chars[] = {
@@ -335,6 +346,7 @@ const periph_t pc80b_desc = {
 	.srvlist = services,
 	.name = "PC80B-BLE",
 	.delay = 3,
+	.init = init,
 	.start = start,
 	.stop = stop,
 };

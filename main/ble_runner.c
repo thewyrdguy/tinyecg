@@ -639,6 +639,9 @@ void ble_write(uint16_t handle, uint8_t *data, size_t datalen)
 void ble_runner(const periph_t *periphs[])
 {
 	pparr = periphs;
+	for (int i = 0; pparr[i]; i++) {
+		if (pparr[i]->init) (pparr[i]->init)();
+	}
 	btSemaphore = xSemaphoreCreateBinary();
 	ESP_LOGI(TAG, "Initializing, running on core %d", xPortGetCoreID());
 	read_rssi_timer = xTimerCreate(
