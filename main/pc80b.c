@@ -66,8 +66,27 @@ static size_t wptr = 0;
 
 static void cmd_devinfo(uint8_t *payload, uint8_t len)
 {
-	ESP_LOGI(TAG, "cmd_devinfo");
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_INFO);
+	ESP_LOGD(TAG, "cmd_devinfo");
+	ESP_LOG_BUFFER_HEX_LEVEL(TAG, payload, len, ESP_LOG_DEBUG);
+	char softwareV[64];
+	char hardwareV[4];
+	char alorithmV[4];
+	if (len == 6) {
+		snprintf(softwareV, sizeof(softwareV), "%d.%d.%d.%d",
+				payload[0], payload[1],
+				payload[2], payload[3]);
+	} else if (len == 8) {
+		snprintf(softwareV, sizeof(softwareV), "%d.%d.%d.%d%d%d",
+				payload[0], payload[1],
+				payload[2], payload[3],
+				payload[4], payload[5]);
+	} else {
+		snprintf(softwareV, sizeof(softwareV), "%d", payload[0]);
+	}
+	snprintf(hardwareV, sizeof(hardwareV), "%d", payload[len - 2]);
+	snprintf(alorithmV, sizeof(alorithmV), "%d", payload[len - 1]);
+	ESP_LOGI(TAG, "Device info: sw %s, hw %s, al %s",
+			softwareV, hardwareV, alorithmV);
 }
 
 static void cmd_time(uint8_t *payload, uint8_t len)
