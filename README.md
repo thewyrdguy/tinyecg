@@ -38,6 +38,13 @@ to display real ECG trace, in near real time.
 * Have a running PC-80B or HRM in the vicinity. You should see ECG trace
   running on the display in a few seconds.
 
+# Physical design
+
+There is an openscad design for a 3d printed case for the board with
+display and 320 mAh lithium polymer battery. Adjust dimentions if you use
+a different version of the board or a different battery.
+
 # Readiness status
 
-As of initial code upload (2024-10-03), this is an early work in progress.
+As of this update (2024-11-29), the code of the firmware can be considered
+ready for use, while the case design is in progress
