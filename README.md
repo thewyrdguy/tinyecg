@@ -1,7 +1,10 @@
-# Display (real or synthesised) ECG on LilyGO T-Display-S3-AMOLED
+# Display (real or synthesised) ECG on ESP32S3 with AMOLED
 
-T-Display-S3-AMOLED is a dev module based on ESP32 SoC and featuring a 240x536
-AMOLED display panel. As most Espressif SoCs, it has support for WiFi (2.4 MHz)
+* LilyGO T-Display-S3-AMOLED
+* WaveShare ESP32-S3 1.91inch AMOLED
+
+Both models are dev boards based on ESP32 SoC and featuring a 240x536
+AMOLED display panel. As most Espressif SoCs, they support WiFi (2.4 MHz only)
 and Bluetooth + Bluetooth LE.
 
 This project is a from-scratch reimplementation of
