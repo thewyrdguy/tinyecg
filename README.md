@@ -1,5 +1,7 @@
 # Display (real or synthesised) ECG on ESP32S3 with AMOLED
 
+![Gadget running tinyecg in action](./action-shot.jpg "tinyecg in action")
+
 * LilyGO T-Display-S3-AMOLED
 * WaveShare ESP32-S3 1.91inch AMOLED
 
@@ -43,11 +45,7 @@ to display real ECG trace, in near real time.
 
 # Physical design
 
-There is an openscad design for a 3d printed case for the board with
-display and 320 mAh lithium polymer battery. Adjust dimentions if you use
-a different version of the board or a different battery.
-
-# Readiness status
-
-As of this update (2024-11-29), the code of the firmware can be considered
-ready for use, while the case design is in progress
+There is an openscad design for a 3d printed case for the Lilygo version
+of the board (T-Display-AMOLED v2.0) with 320 mAh lithium polymer battery.
+Adjust dimentions if you use a different version of the board or
+a different battery.
