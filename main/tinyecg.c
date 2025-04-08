@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <driver/gpio.h>
 #include <esp_log.h>
 #include <esp_sleep.h>
 #include <esp_timer.h>
@@ -27,6 +28,11 @@ SemaphoreHandle_t displaySemaphore;
 SemaphoreHandle_t taskSemaphore;
 volatile bool run_display = true;
 
+static void button_pressed(void *arg)
+{
+	ble_stop();
+}
+
 static void displayTask(void *pvParameter)
 {
 	ESP_LOGI(TAG, "Display task is running on core %d", xPortGetCoreID());
@@ -45,6 +51,17 @@ static void displayTask(void *pvParameter)
 		&periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer,
 		LV_TICK_PERIOD_MS * 1000));
+
+	ESP_ERROR_CHECK(gpio_config(&(gpio_config_t) {
+				.intr_type = GPIO_INTR_NEGEDGE,
+				.mode = GPIO_MODE_INPUT,
+				.pin_bit_mask = 1ULL<<CONFIG_HWE_BUTTON_1,
+				.pull_down_en = GPIO_PULLDOWN_DISABLE,
+				.pull_up_en = GPIO_PULLUP_ENABLE,
+			}));
+	ESP_ERROR_CHECK(gpio_install_isr_service(0));
+	ESP_ERROR_CHECK(gpio_isr_handler_add(CONFIG_HWE_BUTTON_1,
+				button_pressed, NULL));
 
 	const TickType_t xFrequency = configTICK_RATE_HZ / FPS;
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",

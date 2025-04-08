@@ -400,7 +400,7 @@ static void display_stop(lv_obj_t *scr)
 	lv_obj_align(goodbye_label, LV_ALIGN_CENTER, 0, 0);
 	lv_label_set_long_mode(goodbye_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 	lv_label_set_text_static(goodbye_label,
-			"Did not find anything, shutting down to save power.");
+			"Shutting down to save power.");
 	//lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_style_text_color(goodbye_label, lv_color_make(255, 0, 0),
 			LV_PART_MAIN);

@@ -31,6 +31,7 @@ typedef struct {
 	void (*stop)(void);
 } periph_t;
 
+void ble_stop(void);
 void ble_write(uint16_t handle, uint8_t *data, size_t datalen);
 void ble_runner(const periph_t *periphs[]);
 

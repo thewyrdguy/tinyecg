@@ -49,6 +49,11 @@ typedef struct _handle {
 } handle_t;
 static handle_t *handles = NULL;
 
+void ble_stop()
+{
+	xSemaphoreGive(btSemaphore);
+}
+
 static TimerHandle_t read_rssi_timer;
 static void readRssiCallback(TimerHandle_t xTimer)
 {
@@ -678,7 +683,7 @@ void ble_runner(const periph_t *periphs[])
 
 	xSemaphoreTake(btSemaphore, portMAX_DELAY);
 
-	ESP_LOGI(TAG, "Nothing found during scan, powering down");
+	ESP_LOGI(TAG, "Powering down");
 	esp_bluedroid_disable();
 	esp_bluedroid_deinit();
 	esp_bt_controller_disable();
