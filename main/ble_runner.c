@@ -23,6 +23,7 @@
 #define LOCAL_MTU 512
 
 SemaphoreHandle_t btSemaphore;
+static bool pwrbutton;
 
 static const periph_t **pparr, *pp;
 
@@ -51,6 +52,7 @@ static handle_t *handles = NULL;
 
 void ble_stop()
 {
+	pwrbutton = true;
 	xSemaphoreGive(btSemaphore);
 }
 
@@ -643,6 +645,7 @@ void ble_write(uint16_t handle, uint8_t *data, size_t datalen)
 
 void ble_runner(const periph_t *periphs[])
 {
+	pwrbutton = false;
 	pparr = periphs;
 	for (int i = 0; pparr[i]; i++) {
 		if (pparr[i]->init) (pparr[i]->init)();
@@ -683,7 +686,7 @@ void ble_runner(const periph_t *periphs[])
 
 	xSemaphoreTake(btSemaphore, portMAX_DELAY);
 
-	ESP_LOGI(TAG, "Powering down");
+	ESP_LOGI(TAG, "Powering down%s", pwrbutton ? " (button press)" : "");
 	esp_bluedroid_disable();
 	esp_bluedroid_deinit();
 	esp_bt_controller_disable();
