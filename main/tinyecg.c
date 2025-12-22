@@ -93,6 +93,7 @@ static void displayTask(void *pvParameter)
 
 void app_main(void)
 {
+	bool pwrdown;
 	TaskHandle_t lbatt_task;
 	taskSemaphore = xSemaphoreCreateBinary();
 	xSemaphoreGive(taskSemaphore);
@@ -106,9 +107,10 @@ void app_main(void)
 	xTaskCreate(localBatteryTask, "display", 4096*2,
 		       	NULL, 0, &lbatt_task);
 	ESP_LOGI(TAG, "Running BLE scanner");
-	ble_runner((const periph_t*[]){&hrm_desc, &pc80b_desc, NULL});
+	pwrdown = ble_runner(
+			(const periph_t*[]){&hrm_desc, &pc80b_desc, NULL});
 	ESP_LOGI(TAG, "BLE scanner returned, signal display to shut");
-	report_state(state_goingdown);
+	report_state(pwrdown ? state_offbutton : state_notfound);
 	vTaskDelete(lbatt_task);
 	vTaskDelay(pdMS_TO_TICKS(5000));
 	run_display = false;

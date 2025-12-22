@@ -33,7 +33,7 @@ typedef struct {
 
 void ble_stop(void);
 void ble_write(uint16_t handle, uint8_t *data, size_t datalen);
-void ble_runner(const periph_t *periphs[]);
+bool ble_runner(const periph_t *periphs[]);
 
 #ifdef __cplusplus
 }

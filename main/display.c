@@ -388,7 +388,7 @@ static void display_welcome(lv_obj_t *scr)
 				LV_PART_MAIN);
 }
 
-static void display_stop(lv_obj_t *scr)
+static void display_stop(lv_obj_t *scr, bool pwrdown)
 {
 	lv_obj_t *goodbye_label;
 
@@ -400,7 +400,7 @@ static void display_stop(lv_obj_t *scr)
 	lv_obj_align(goodbye_label, LV_ALIGN_CENTER, 0, 0);
 	lv_label_set_long_mode(goodbye_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 	lv_label_set_text_static(goodbye_label,
-			"Shutting down to save power.");
+		pwrdown ? "Powering down" : "Shutting down to save power.");
 	//lv_obj_set_style_text_font(goodbye_label, &lv_font_montserrat_28, 0);
 	lv_obj_set_style_text_color(goodbye_label, lv_color_make(255, 0, 0),
 			LV_PART_MAIN);
@@ -425,8 +425,11 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 	case state_receiving:
 		display_grid(scr);
 		break;
-	case state_goingdown:
-		display_stop(scr);
+	case state_notfound:
+		display_stop(scr, false);
+		break;
+	case state_offbutton:
+		display_stop(scr, true);
 		break;
 	default:
 		break;

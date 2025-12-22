@@ -42,7 +42,8 @@ enum state_e {
 	_state_uninitialized = 0,
 	state_scanning,
 	state_receiving,
-	state_goingdown,
+	state_offbutton,
+	state_notfound,
 };
 
 typedef struct _ds {

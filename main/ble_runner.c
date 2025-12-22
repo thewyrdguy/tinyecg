@@ -643,7 +643,7 @@ void ble_write(uint16_t handle, uint8_t *data, size_t datalen)
 			ESP_GATT_AUTH_REQ_NONE));
 }
 
-void ble_runner(const periph_t *periphs[])
+bool ble_runner(const periph_t *periphs[])
 {
 	pwrbutton = false;
 	pparr = periphs;
@@ -692,4 +692,5 @@ void ble_runner(const periph_t *periphs[])
 	esp_bt_controller_disable();
 	esp_bt_controller_deinit();
 	nvs_flash_deinit();
+	return pwrbutton;
 }

@@ -52,7 +52,7 @@ void localBatteryTask(void *pvParameter)
 		 * range from 3.0 to 4.0, we have 1500 mV as empty, and
 		 * 2000 as full. In percent, it will be:
 		 */
-		report_lbatt((value - 1500) / 5);
+		report_lbatt(value > 1500 ? (value - 1500) / 5 : 0);
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 	}
 }
