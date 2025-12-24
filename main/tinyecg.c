@@ -28,11 +28,6 @@ SemaphoreHandle_t displaySemaphore;
 SemaphoreHandle_t taskSemaphore;
 volatile bool run_display = true;
 
-static void button_pressed(void *arg)
-{
-	ble_stop();
-}
-
 static void displayTask(void *pvParameter)
 {
 	ESP_LOGI(TAG, "Display task is running on core %d", xPortGetCoreID());
@@ -59,9 +54,6 @@ static void displayTask(void *pvParameter)
 				.pull_down_en = GPIO_PULLDOWN_DISABLE,
 				.pull_up_en = GPIO_PULLUP_ENABLE,
 			}));
-	ESP_ERROR_CHECK(gpio_install_isr_service(0));
-	ESP_ERROR_CHECK(gpio_isr_handler_add(CONFIG_HWE_BUTTON_1,
-				button_pressed, NULL));
 
 	const TickType_t xFrequency = configTICK_RATE_HZ / FPS;
 	ESP_LOGI(TAG, "FPS=%d SPS=%d ticks per frame: %lu",
@@ -85,6 +77,8 @@ static void displayTask(void *pvParameter)
 			}
 			xSemaphoreGive(displaySemaphore);
 		}
+		int lvl = gpio_get_level(CONFIG_HWE_BUTTON_1);
+		if (!lvl) ble_stop();
 	}
 	lvgl_display_shut(disp);
 	xSemaphoreGive(taskSemaphore);
