@@ -23,9 +23,14 @@ jobs:
         path: '.'
     - name: Pack binaries
       run: >
-        cp bin-README build/README;
-        cd build;
+        mkdir dist dist/bootloader dist/partition_table;
+        cp bin-README dist/README;
+        cp build/bootloader/bootloader.bin dist/bootloader/;
+        cp build/partition_table/partition-table.bin dist/partition_table/;
+        cp build/tinyecg.bin build/flash_args dist/;
+        cd dist;
         zip tinyecg-${{ github.ref_name }}.zip
+        README
         flash_args
         bootloader/bootloader.bin
         tinyecg.bin
@@ -34,7 +39,7 @@ jobs:
     - name: Upload build
       run: >
         gh release create ${{ github.ref_name }}
-        build/tinyecg-${{ github.ref_name }}.zip
+        dist/tinyecg-${{ github.ref_name }}.zip
       env:
         GITHUB_TOKEN: ${{ github.TOKEN }}
       shell: bash
