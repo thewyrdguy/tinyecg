@@ -2,6 +2,8 @@
 
 ![Gadget running tinyecg in action](./action-shot.jpg "tinyecg in action")
 
+This firmware can be flashed on:
+
 * LilyGO T-Display-S3-AMOLED
 * WaveShare ESP32-S3 1.91inch AMOLED
 
@@ -30,9 +32,10 @@ Chest strap sensors do not provide ECG readings, but they do provide the
 sequence of RR interval durations. In this case, this gadget generates a
 simulated ECG that represens RR intervals received from the sensor.
 
-PC-80B recorder (when in "wireless" mode) provides real ECG reading,
-sampled at 150 Hz, as a stream of BLE messages. In this case, we are able
-to display real ECG trace, in near real time.
+PC-80B recorder provides real ECG reading, sampled at 150 Hz, as a stream
+of BLE messages. In this case, we are able to display real ECG trace,
+in near real time. Recorder has to be set to "wireless" mode via its
+"Settings" menu.
 
 # Building
 
@@ -49,3 +52,12 @@ There is an openscad design for a 3d printed case for the Lilygo version
 of the board (T-Display-AMOLED v2.0) with 320 mAh lithium polymer battery.
 Adjust dimentions if you use a different version of the board or
 a different battery.
+
+# Hardware notes
+
+- Waveshare module has reversed button positions compared to Lilygo module.
+- Waveshare module does not have GPIO4 connected to the battery voltage
+  divider, it is impossible(?) to get battery voltage reading. Battery
+  charge indicator will show nonsense.
+- Waveshare and Lilygo have slightly different geometry; provided box
+  design is for Lilygo. It has to be adjusted to fit Waveshare.

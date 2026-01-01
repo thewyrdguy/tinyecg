@@ -1,7 +1,14 @@
-To flash the app onto the dev board, Python "esptool" backage. Run:
+Source and explanations: https://github.com/thewyrdguy/tinyecg
+
+To flash the app onto the dev board, you need "esptool" program.
+On linux, it is going to be a package named "esptool". On other systems,
+and on linux distros that don't provide such package, get Python
+(>= 3.10) and use "pip install esptool".
+
+Then, run:
 
 python -m esptool -p /dev/ttyACM0 --chip esp32s3 -b 460800 \
 	--before default_reset --after hard_reset \
 	write_flash "@flash_args"
 
-Source: https://github.com/thewyrdguy/tinyecg
+in the directory where this README was extracted to.
