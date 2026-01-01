@@ -224,6 +224,10 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		if (rssi > 4) rssi = 4;
 		report_rssi((uint8_t)rssi);
 		break;
+	case ESP_GAP_BLE_CHANNEL_SELECT_ALGORITHM_EVT:
+		ESP_LOGD(TAG, "Channel select alg %x",
+				param->channel_sel_alg.channel_sel_alg);
+		break;
 	default:
 		ESP_LOGE(TAG, "Unhandled GAP EVT %x", event);
 		break;
@@ -614,8 +618,13 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 		}
 		srvprofs = NULL;
 		report_found(false);
-		// This will send GAP indication that it can start scanning
-		ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(&scan_params));
+		if (p_data->disconnect.reason !=
+				ESP_GATT_CONN_TERMINATE_LOCAL_HOST) {
+			// Unless disconnect was on our own initiative
+			// Send GAP indication that it can start scanning
+			ESP_ERROR_CHECK(esp_ble_gap_set_scan_params(
+						&scan_params));
+		}
 		break;
 	case ESP_GATTC_CLOSE_EVT:
 		ESP_LOGI(TAG, "close, reason %d", p_data->close.reason);
