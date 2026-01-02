@@ -46,6 +46,21 @@ in near real time. Recorder has to be set to "wireless" mode via its
 * Have a running PC-80B or HRM in the vicinity. You should see ECG trace
   running on the display in a few seconds.
 
+# Installing from the binary release
+
+In the "Releases" secton on github, you can find zip file that contains
+pre-built binaries that can be flashed onto the module. Flashing requires
+`esptool` program. On many Linux distros, there is a package available in
+the standard repository.
+
+# Running.
+
+Start the gadget by pressing "reset" button.
+
+After some time, if it does not find a source, it loses hope and goes
+to deep sleep. You can make it go to deep sleep by pressing "the other"
+button (the one that is not "reset").
+
 # Physical design
 
 There is an openscad design for a 3d printed case for the Lilygo version
@@ -56,8 +71,8 @@ a different battery.
 # Hardware notes
 
 - Waveshare module has reversed button positions compared to Lilygo module.
-- Waveshare module does not have GPIO4 connected to the battery voltage
-  divider, it is impossible(?) to get battery voltage reading. Battery
-  charge indicator will show nonsense.
+- Lilygo has GPIO4 connected to the battery voltage divider, Waveshare has
+  GPIO1. The program will try to figure out where is it running (better
+  than having two separate binaries?).
 - Waveshare and Lilygo have slightly different geometry; provided box
   design is for Lilygo. It has to be adjusted to fit Waveshare.
