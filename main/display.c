@@ -48,7 +48,7 @@ static inline lv_color_t c_swap(lv_color_t o)
 #define FHEIGHT (HEIGHT - 10)
 #define FMAX (MFWIDTH - 10)
 #define RAW_BUF_SIZE (FWIDTH * FHEIGHT \
-                * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565))
+                * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565_SWAPPED))
 
 static uint16_t *rawbuf, *clearbuf;
 
@@ -197,8 +197,8 @@ static void mode_draw_cb(lv_event_t * e)
 	int stopper = (mode == mm_continuous) ? 0 : 6;
 	lv_draw_triangle_dsc_t arrow;
 	lv_draw_triangle_dsc_init(&arrow);
-	arrow.bg_opa = LV_OPA_100;
-	arrow.bg_color = colour;
+	arrow.opa = LV_OPA_100;
+	arrow.color = colour;
 	arrow.p[0].x = obj_coords.x2 - 5 - stopper;
 	arrow.p[0].y = ybase;
 	arrow.p[1].x = obj_coords.x2 - 17 - stopper;
@@ -350,14 +350,28 @@ static void display_grid(lv_obj_t *scr)
 	memset(&old_stash, 0, sizeof(old_stash));
 }
 
+static lv_color_t c_swap(lv_color_t o)
+{
+	return (lv_color_t) {
+		.red =   ((o.green << 3) & 0b11100000) | ((o.blue >> 3)  & 0b00011000),
+		.green = ((o.blue << 2)  & 0b11100000) | ((o.red >> 3)   & 0b00011100),
+		.blue =  ((o.red << 3)   & 0b11000000) | ((o.green >> 2) & 0b00111000),
+	};
+}
+
+static uint16_t cursor_color, trace_color;
+
 void display_init(lv_display_t* disp) {
+	/* trace is drawn using raw memory writes, withut lvgl magic.
+	 * It means that we have to make colors with swapped bytes. */
+	cursor_color = lv_color_to_u16(c_swap(lv_color_make(16, 16, 16)));
+	trace_color = lv_color_to_u16(c_swap(lv_color_make(0, 255, 0)));
 	rawbuf = heap_caps_malloc(RAW_BUF_SIZE, MALLOC_CAP_DMA);
 	clearbuf = heap_caps_malloc(RAW_BUF_SIZE, MALLOC_CAP_DMA);
 	assert(rawbuf != NULL && clearbuf != NULL);
 	memset(clearbuf, 0, RAW_BUF_SIZE);
 	for (int y = 0; y < FHEIGHT; y++) {
-		clearbuf[y * FWIDTH] =
-			lv_color_to_u16(lv_color_make(16, 16, 16));
+		clearbuf[y * FWIDTH] = cursor_color;
 	}
 }
 
@@ -504,8 +518,7 @@ void display_update(lv_display_t* disp, lv_area_t *where, lv_area_t *clear,
 				lbot = oldvpos;
 			}
 			for (int y = ltop; y <= lbot; y++) {
-				rawbuf[x + (y * FWIDTH)] = lv_color_to_u16(
-						lv_color_make(0, 255, 0));
+				rawbuf[x + (y * FWIDTH)] = trace_color;
 			}
 			oldvpos = vpos;
 		}
