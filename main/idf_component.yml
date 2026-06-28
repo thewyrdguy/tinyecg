@@ -1,3 +1,5 @@
 dependencies:
   idf: ">=5.5"
   lvgl/lvgl: ">=9.3.0"
+  crosser/esp-lcd-panel-rm67162:
+    version: ">=0.1"
