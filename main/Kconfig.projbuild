@@ -80,6 +80,15 @@ menu "Hardware Environment (PINS, screen, etc.)"
 		int "RST (Reset device) pin number for display controller"
 		default 17
 
+	choice
+		prompt "RST level when device is active"
+		default HWE_DISPLAY_RST_ACTIVE_LEVEL_HIGH
+		config HWE_DISPLAY_RST_ACTIVE_LEVEL_HIGH
+			bool "Device is active when RST pin is HIGH"
+		config HWE_DISPLAY_RST_ACTIVE_LEVEL_LOW
+			bool "Device is active when RST pin is LOW"
+	endchoice
+
 	config HWE_DISPLAY_RST_ACTIVE_LEVEL
 		int "Which GPIO level is active 'resetting' (0 or 1)"
 		default 0
