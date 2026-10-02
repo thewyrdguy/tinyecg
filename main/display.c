@@ -1,7 +1,6 @@
 #include <string.h>
 #include <esp_heap_caps.h>
 #include <lvgl.h>
-#include <misc/lv_style.h>
 #include "sampling.h"
 #include "data.h"
 
