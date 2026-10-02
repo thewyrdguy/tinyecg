@@ -4,40 +4,6 @@
 #include "sampling.h"
 #include "data.h"
 
-#if 0
-/* Create a pseudo lv_color_t that will produce byte-swapped r5g6b5 */
-/* We won't use this approach because it breaks antialiasing calculations */
-static inline lv_color_t c_swap(lv_color_t o)
-{
-	/*
-	   RRRrr... GGGggg.. BBbbb...
-		___  __ __  ___
-	   /   \/	 \/   \
-	   RRRrrGGG gggBBbbb
-			   X
-	   gggBBbbb RRRrrGGG
-	   \___/\__ __/\___/
-	   r	 g-	 b---
-	   |	   \		\
-	   gggBB000 bbbRRR00 rrGGG000
-	 */
-	return (lv_color_t) {
-	.red =   ((o.green << 3) & 0b11100000) | ((o.blue >> 3)  & 0b00011000),
-	.green = ((o.blue << 2)  & 0b11100000) | ((o.red >> 3)   & 0b00011100),
-	.blue =  ((o.red << 3)   & 0b11000000) | ((o.green >> 2) & 0b00111000)
-	};
-}
-#endif
-
-/*
- * In case it is needed:
- *  https://forum.lvgl.io/t/get-string-width-in-pixels/3414/4
- * lv_point_t p;
- * _lv_txt_ap_proc(my_str, ctx_text);
- * _lv_txt_get_size(&p, ctxi_text, my_font, 0, 0,
- * 			 LV_COORD_MAX, LV_TXT_FLAG_EXPAND);
- */
-
 // Frame outer sizes
 #define HEIGHT 240
 #define MFWIDTH 460
@@ -55,9 +21,7 @@ static void rssi_draw_cb(lv_event_t * e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	int value = (intptr_t)lv_obj_get_user_data(obj);
-	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	if (base_dsc->part != LV_PART_MAIN) return;
+	lv_layer_t *layer = lv_event_get_layer(e);
 
 	lv_color_t colour = (value > 0) ? lv_color_make(0, 128, 0)
 					: lv_color_make(128, 0, 0);
@@ -77,7 +41,7 @@ static void rssi_draw_cb(lv_event_t * e)
 		a.y2 = i * 5 + 3;
 		lv_area_align(&obj_coords, &a, LV_ALIGN_BOTTOM_LEFT,
 				i * 9 + 8, 0);
-		lv_draw_rect(base_dsc->layer, &(bar), &a);
+		lv_draw_rect(layer, &(bar), &a);
 	}
 }
 
@@ -88,9 +52,7 @@ static void batt_draw_cb(lv_event_t * e)
 	value = value * 36 / 100;
 	if (value < 0) value = 0;
 	if (value > 36) value = 36;
-	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	if (base_dsc->part != LV_PART_MAIN) return;
+	lv_layer_t *layer = lv_event_get_layer(e);
 
 	lv_color_t colour = (value > 0) ? lv_color_make(0, 128, 0)
 					: lv_color_make(128, 0, 0);
@@ -110,7 +72,7 @@ static void batt_draw_cb(lv_event_t * e)
 	box.border_width = 3;
 	box.border_color = colour;
 	box.bg_opa = LV_OPA_0;
-	lv_draw_rect(base_dsc->layer, &box, &a);
+	lv_draw_rect(layer, &box, &a);
 	a.x1 += 2;
 	a.x2 = a.x1 + value;
 	a.y1 += 2;
@@ -119,16 +81,14 @@ static void batt_draw_cb(lv_event_t * e)
 	lv_draw_rect_dsc_init(&inside);
 	inside.border_width = 0;
 	inside.bg_color = dim;
-	lv_draw_rect(base_dsc->layer, &inside, &a);
+	lv_draw_rect(layer, &inside, &a);
 }
 
 static void lead_draw_cb(lv_event_t * e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	bool leadoff = (intptr_t)lv_obj_get_user_data(obj);
-	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	if (base_dsc->part != LV_PART_MAIN) return;
+	lv_layer_t *layer = lv_event_get_layer(e);
 
 	lv_color_t colour = (leadoff) ? lv_color_make(128, 0, 0)
 					: lv_color_make(0, 128, 0);
@@ -146,7 +106,7 @@ static void lead_draw_cb(lv_event_t * e)
 	for (int i = 0; i <= 1; i++) {
 		if (i) arc.center.x = obj_coords.x2 - 12;
 		else arc.center.x = obj_coords.x1 + 12;
-		lv_draw_arc(base_dsc->layer, &arc);
+		lv_draw_arc(layer, &arc);
 	}
 	lv_area_t a = {
 		.x1 = obj_coords.x1 + 12,
@@ -158,14 +118,14 @@ static void lead_draw_cb(lv_event_t * e)
 	lv_draw_rect_dsc_init(&connect);
 	connect.border_width = 0;
 	connect.bg_color = colour;
-	lv_draw_rect(base_dsc->layer, &connect, &a);
+	lv_draw_rect(layer, &connect, &a);
 	if (leadoff) {  // make a gap in the middle
 		int xbase = obj_coords.x1 +
 			(obj_coords.x2 - obj_coords.x1) / 2;
 		a.x1 = xbase - 4;
 		a.x2 = xbase + 4;
 		connect.bg_color = lv_color_black();
-		lv_draw_rect(base_dsc->layer, &connect, &a);
+		lv_draw_rect(layer, &connect, &a);
 	}
 }
 
@@ -173,9 +133,7 @@ static void mode_draw_cb(lv_event_t * e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	enum mmode_e mode = (enum mmode_e)lv_obj_get_user_data(obj);
-	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	if (base_dsc->part != LV_PART_MAIN) return;
+	lv_layer_t *layer = lv_event_get_layer(e);
 
 	lv_color_t colour = (mode == mm_detecting) ? lv_color_make(64, 64, 64)
 					: lv_color_make(0, 0, 192);
@@ -191,7 +149,7 @@ static void mode_draw_cb(lv_event_t * e)
 	line.p1.y = ybase;
 	line.p2.x = obj_coords.x2 - 10;
 	line.p2.y = ybase;
-	lv_draw_line(base_dsc->layer, &line);
+	lv_draw_line(layer, &line);
 
 	int stopper = (mode == mm_continuous) ? 0 : 6;
 	lv_draw_triangle_dsc_t arrow;
@@ -204,17 +162,17 @@ static void mode_draw_cb(lv_event_t * e)
 	arrow.p[1].y = ybase - 10;
 	arrow.p[2].x = obj_coords.x2 - 17 - stopper;
 	arrow.p[2].y = ybase + 10;
-	lv_draw_triangle(base_dsc->layer, &arrow);
+	lv_draw_triangle(layer, &arrow);
 	if (stopper) {
 		line.width = 6;
 		line.p1.y = ybase - 10;
 		line.p2.y = ybase + 10;
 		line.p1.x = obj_coords.x1 + 7;
 		line.p2.x = obj_coords.x1 + 7;
-		lv_draw_line(base_dsc->layer, &line);
+		lv_draw_line(layer, &line);
 		line.p1.x = obj_coords.x2 - 7;
 		line.p2.x = obj_coords.x2 - 7;
-		lv_draw_line(base_dsc->layer, &line);
+		lv_draw_line(layer, &line);
 	}
 }
 
@@ -222,9 +180,7 @@ static void stage_draw_cb(lv_event_t * e)
 {
 	lv_obj_t * obj = lv_event_get_target(e);
 	enum mstage_e stage = (enum mstage_e)lv_obj_get_user_data(obj);
-	lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t * base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	if (base_dsc->part != LV_PART_MAIN) return;
+	lv_layer_t *layer = lv_event_get_layer(e);
 
 	lv_color_t colour = (stage == ms_stop) ? lv_color_make(192, 0, 0)
 						: lv_color_make(0, 0, 192);
@@ -244,7 +200,7 @@ static void stage_draw_cb(lv_event_t * e)
 		a.y2 = 5;
 		lv_area_align(&obj_coords, &a, LV_ALIGN_LEFT_MID,
 				i * 9 + 8, 0);
-		lv_draw_rect(base_dsc->layer, &(bar), &a);
+		lv_draw_rect(layer, &(bar), &a);
 	}
 }
 
@@ -324,9 +280,7 @@ static lv_obj_t *mkindic(lv_obj_t *parent, lv_obj_t *after,
 		lv_obj_align(indic, LV_ALIGN_TOP_MID, 0, 0);
 	}
 	if (event_cb) {
-		lv_obj_add_event_cb(indic, event_cb, LV_EVENT_DRAW_TASK_ADDED,
-				NULL);
-		lv_obj_add_flag(indic, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+		lv_obj_add_event_cb(indic, event_cb, LV_EVENT_DRAW_MAIN, NULL);
 	}
 	return indic;
 }
