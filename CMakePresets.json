@@ -1,0 +1,44 @@
+{
+	"version": 3,
+	"configurePresets": [
+		{
+			"name": "lilygo-amoled",
+			"binaryDir": "build/lilygo-amoled",
+			"displayName": "LilyGo AMOLED",
+			"description":
+				"Use config presets for LilyGo lilygo AMOLED",
+			"cacheVariables": {
+				"SDKCONFIG_DEFAULTS":
+					"sdkconfig.lilygo-amoled",
+				"SDKCONFIG":
+					"./build/lilygo-amoled/sdkconfig"
+			}
+		},
+		{
+			"name": "lilygo-amoled-plus",
+			"binaryDir": "build/lilygo-amoled-plus",
+			"displayName": "LilyGo AMOLED Plus",
+			"description":
+				"Use config presets for LilyGo AMOLED Plus",
+			"cacheVariables": {
+				"SDKCONFIG_DEFAULTS":
+					"sdkconfig.lilygo-amoled-plus",
+				"SDKCONFIG":
+					"./build/lilygo-amoled-plus/sdkconfig"
+			}
+		},
+		{
+			"name": "waveshare-amoled",
+			"binaryDir": "build/waveshare-amoled",
+			"displayName": "Waveshare esp32-s3-amoled-1.91",
+			"description":
+				"Use config presets for Waveshare AMOLED 1.91",
+			"cacheVariables": {
+				"SDKCONFIG_DEFAULTS":
+					"sdkconfig.waveshare-amoled",
+				"SDKCONFIG":
+					"./build/waveshare-amoled/sdkconfig"
+			}
+		}
+	]
+}
