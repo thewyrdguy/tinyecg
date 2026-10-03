@@ -2,13 +2,14 @@
 
 ![Gadget running tinyecg in action](./action-shot.jpg "tinyecg in action")
 
-This firmware can be flashed on:
+This firmware supprots:
 
-* LilyGO T-Display-S3-AMOLED
-* WaveShare ESP32-S3 1.91inch AMOLED
+* LilyGO T-Display-S3-AMOLED (`--preset lilygo-amoled`)
+* LilyGO T-Display-S3-AMOLED Plus (`--preset lilygo-amoled-plus`)
+* WaveShare ESP32-S3 1.91inch AMOLED (`--preset waveshare-amoled`)
 
-Both models are dev boards based on ESP32 SoC and featuring a 240x536
-AMOLED display panel. As most Espressif SoCs, they support WiFi (2.4 MHz only)
+They are dev boards based on ESP32 SoC and feature a 240x536 AMOLED display
+panel. As most Espressif SoCs, they support WiFi (2.4 MHz only)
 and Bluetooth + Bluetooth LE.
 
 This project is a from-scratch reimplementation of
@@ -42,9 +43,8 @@ in near real time. Recorder has to be set to "wireless" mode via its
 * Install ESP-IDF (refer to the documentaiton, link above).
 * Clone this repository
 * Follow IDF instructions for building a project (`idf.py set-target esp32s3`,
-  `idf.py build`, `idf.py -p <tty-where-the-module-is-connected> flash`).
-* Have a running PC-80B or HRM in the vicinity. You should see ECG trace
-  running on the display in a few seconds.
+  `idf.py build`, `idf.py -p <tty-where-the-module-is-connected> flash`),
+  using `--preset` option for the board that you have (see above).
 
 # Installing from the binary release
 
@@ -54,6 +54,8 @@ pre-built binaries that can be flashed onto the module. Flashing requires
 the standard repository.
 
 # Running.
+
+Have PC-80B or an HR strap sensor running.
 
 Start the gadget by pressing "reset" button.
 
@@ -71,8 +73,7 @@ a different battery.
 # Hardware notes
 
 - Waveshare module has reversed button positions compared to Lilygo module.
-- Lilygo has GPIO4 connected to the battery voltage divider, Waveshare has
-  GPIO1. The program will try to figure out where is it running (better
-  than having two separate binaries?).
 - Waveshare and Lilygo have slightly different geometry; provided box
   design is for Lilygo. It has to be adjusted to fit Waveshare.
+- Waveshare has rather high deep sleep current, you'd want to add a
+  physical switch for the battery.
