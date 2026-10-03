@@ -65,12 +65,14 @@ void lvgl_display_push(lv_display_t *disp_drv, const lv_area_t *area,
 
 lv_display_t *lvgl_display_init(void)
 {
+#if CONFIG_HWE_DISPLAY_PWR >= 0
 	ESP_LOGI(TAG, "Power up AMOLED");
 	ESP_ERROR_CHECK(gpio_set_direction(CONFIG_HWE_DISPLAY_PWR,
 				GPIO_MODE_OUTPUT));
 	ESP_ERROR_CHECK(gpio_set_level(CONFIG_HWE_DISPLAY_PWR,
 				CONFIG_HWE_DISPLAY_PWR_ON_LEVEL));
 	vTaskDelay(pdMS_TO_TICKS(500));
+#endif
 
 	ESP_LOGI(TAG, "Initialize SPI bus");
 	ESP_ERROR_CHECK(spi_bus_initialize(SPIx_HOST,
@@ -133,9 +135,6 @@ lv_display_t *lvgl_display_init(void)
 	// Rotate 90 degrees clockwise:
 	ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
 	ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
-	ESP_LOGI(TAG, "Turn on backlight");
-	ESP_ERROR_CHECK(gpio_set_level(CONFIG_HWE_DISPLAY_PWR,
-				CONFIG_HWE_DISPLAY_PWR_ON_LEVEL));
 	// panel_handle is ready, now deal with lvgl
 	lv_init();
 	// H and W exchanged because it lies on its side after rotation
@@ -166,6 +165,8 @@ void lvgl_display_shut(lv_display_t *disp)
 	esp_lcd_panel_handle_t panel_handle =
 		(esp_lcd_panel_handle_t)lv_display_get_user_data(disp);
 	ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, false));
+#if CONFIG_HWE_DISPLAY_PWR >= 0
 	ESP_ERROR_CHECK(gpio_set_level(CONFIG_HWE_DISPLAY_PWR,
 				!CONFIG_HWE_DISPLAY_PWR_ON_LEVEL));
+#endif
 }
