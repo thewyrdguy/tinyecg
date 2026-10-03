@@ -33,12 +33,26 @@
 # error "SPI MODE0 or MODE3 must be selected"
 #endif
 
+#if defined(CONFIG_HWE_DISPLAY_SPI_SPI)
+# define SPI_IS_QUAD 0
+#elif defined(CONFIG_HWE_DISPLAY_SPI_QSPI)
+# define SPI_IS_QUAD 1
+#else
+# error "SPI width must be either regular or quad"
+#endif
+
 #if defined(CONFIG_HWE_DISPLAY_RST_ACTIVE_LEVEL_LOW)
 # define RST_ACTIVE_LEVEL 0
 #elif defined(CONFIG_HWE_DISPLAY_RST_ACTIVE_LEVEL_HIGH)
 # define RST_ACTIVE_LEVEL 1
 #else
 # error "RST_ACTIVE_LEVEL must be selected"
+#endif
+
+#if CONFIG_HWE_DISPLAY_SPI_CUSTOM_INIT
+# include CONFIG_HWE_DISPLAY_SPI_INIT_CMDS
+#else
+static const rm67162_init_cmd_t *rm67162_init_cmds = NULL;
 #endif
 
 #define SEND_BUF_SIZE ((CONFIG_HWE_DISPLAY_WIDTH * CONFIG_HWE_DISPLAY_HEIGHT \
@@ -77,15 +91,24 @@ lv_display_t *lvgl_display_init(void)
 	ESP_LOGI(TAG, "Initialize SPI bus");
 	ESP_ERROR_CHECK(spi_bus_initialize(SPIx_HOST,
 		& (spi_bus_config_t) {
+#if SPI_IS_QUAD
 			.data0_io_num = CONFIG_HWE_DISPLAY_SPI_D0,
 			.data1_io_num = CONFIG_HWE_DISPLAY_SPI_D1,
-			.sclk_io_num = CONFIG_HWE_DISPLAY_SPI_SCK,
 			.data2_io_num = CONFIG_HWE_DISPLAY_SPI_D2,
 			.data3_io_num = CONFIG_HWE_DISPLAY_SPI_D3,
+#else
+			.mosi_io_num = CONFIG_HWE_DISPLAY_SPI_MOSI,
+			.miso_io_num = -1,
+			.quadhd_io_num = -1,
+			.quadwp_io_num = -1,
+#endif
+			.sclk_io_num = CONFIG_HWE_DISPLAY_SPI_SCK,
 			.max_transfer_sz = SEND_BUF_SIZE + 8,
 			.flags = SPICOMMON_BUSFLAG_MASTER
-				| SPICOMMON_BUSFLAG_GPIO_PINS
-				| SPICOMMON_BUSFLAG_QUAD,
+#if SPI_IS_QUAD
+				| SPICOMMON_BUSFLAG_QUAD
+#endif
+				| SPICOMMON_BUSFLAG_GPIO_PINS,
 		},
 		SPI_DMA_CH_AUTO
 	));
@@ -96,19 +119,16 @@ lv_display_t *lvgl_display_init(void)
 	       	& (esp_lcd_panel_io_spi_config_t) {
 			.cs_gpio_num = CONFIG_HWE_DISPLAY_SPI_CS,
 			.pclk_hz = CONFIG_HWE_DISPLAY_SPI_FREQUENCY,
-			.lcd_cmd_bits = 32,  // Pretend 32bit command when DC-less
-			.lcd_param_bits = 8,
-#if defined(CONFIG_HWE_DISPLAY_SPI_SPI)
-			.spi_mode = 0,
-#elif defined(CONFIG_HWE_DISPLAY_SPI_QSPI)
-			.spi_mode = 0,
+#if SPI_IS_QUAD
+			.dc_gpio_num = -1,
+			.lcd_cmd_bits = 32,
 			.flags.quad_mode = 1,
-#elif defined(CONFIG_HWE_DISPLAY_SPI_OSPI)
-			.spi_mode = 3,
-			.flags.octal_mode = 1,
 #else
-# error "SPI single, quad and octal modes are supported"
+			.dc_gpio_num =CONFIG_HWE_DISPLAY_SPI_DC,
+			.lcd_cmd_bits = 8,
 #endif
+			.lcd_param_bits = 8,
+			.spi_mode = SPI_MODEx,
 			.trans_queue_depth = 17,
 		},
 	       	&io_handle
@@ -122,6 +142,14 @@ lv_display_t *lvgl_display_init(void)
 			.flags.reset_active_high = RST_ACTIVE_LEVEL,
 			.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
 			.bits_per_pixel = 16,
+			.vendor_config = & (rm67162_vendor_config_t) {
+				.init_cmds = rm67162_init_cmds,
+#if SPI_IS_QUAD
+				.flags.dc_less = true,
+#else
+				.flags.dc_less = false,
+#endif
+			},
 		},
 		&panel_handle
 	));

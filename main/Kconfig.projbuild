@@ -15,8 +15,6 @@ menu "TinyECG configurable options"
 
 endmenu
 
-# Kconfig file for Lilligo T3-AMOLED module demo
-
 menu "Hardware Environment (PINS, screen, etc.)"
 
 	choice
@@ -35,29 +33,40 @@ menu "Hardware Environment (PINS, screen, etc.)"
 			bool "Regular SPI"
 		config HWE_DISPLAY_SPI_QSPI
 			bool "Quad SPI"
-		config HWE_DISPLAY_SPI_OSPI
-			bool "Octal SPI"
 	endchoice
+
+	menu "Regular SPI pin configuration"
+		depends on HWE_DISPLAY_SPI_SPI
+		config HWE_DISPLAY_SPI_MOSI
+			int "MOSI pin number of SPI bus"
+			default 18
+		config HWE_DISPLAY_SPI_DC
+			int "DC pin number of SPI bus"
+			default 7
+	endmenu
+
+	menu "Quad SPI pin configuration"
+		depends on HWE_DISPLAY_SPI_QSPI
+		config HWE_DISPLAY_SPI_D0
+			int "D0 pin number of QSPI bus"
+			default 18
+
+		config HWE_DISPLAY_SPI_D1
+			int "D1 pin number of QSPI bus"
+			default 7
+
+		config HWE_DISPLAY_SPI_D2
+			int "D2 pin number of QSPI bus"
+			default 48
+
+		config HWE_DISPLAY_SPI_D3
+			int "D3 pin number of QSPI bus"
+			default 5
+	endmenu
 
 	config HWE_DISPLAY_SPI_SCK
 		int "SCK (Clock) pin number of SPI bus"
 		default 47
-
-	config HWE_DISPLAY_SPI_D0
-		int "D0 (a.k.a. MOSI) pin number of SPI bus"
-		default 18
-
-	config HWE_DISPLAY_SPI_D1
-		int "D1 (a.k.a. DC) pin number of SPI bus"
-		default 7
-
-	config HWE_DISPLAY_SPI_D2
-		int "D2 pin number of SPI bus"
-		default 48 
-
-	config HWE_DISPLAY_SPI_D3
-		int "D3 pin number of SPI bus"
-		default 5
 
 	config HWE_DISPLAY_SPI_FREQUENCY
 		int "SPI Frequency for the Display Controller"
@@ -89,9 +98,13 @@ menu "Hardware Environment (PINS, screen, etc.)"
 			bool "Device is active when RST pin is LOW"
 	endchoice
 
-	config HWE_DISPLAY_RST_ACTIVE_LEVEL
-		int "Which GPIO level is active 'resetting' (0 or 1)"
-		default 0
+	config HWE_DISPLAY_SPI_CUSTOM_INIT
+		bool "Use .h file with custom SPI init commands"
+		default false
+
+	config HWE_DISPLAY_SPI_INIT_CMDS
+		depends on HWE_DISPLAY_SPI_CUSTOM_INIT
+		string ".h file with rm67162_init_cmd_t array"
 
 	config HWE_DISPLAY_WIDTH
 		int "Display width (non-rotated)"
