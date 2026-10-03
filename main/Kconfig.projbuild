@@ -109,20 +109,12 @@ menu "Hardware Environment (PINS, screen, etc.)"
 		int "Which GPIO level is 'display on' (0 or 1)"
 		default 1
 
-	config HWE_BATTERY_ADC_A
-		int "Option A for battery voltage pin"
+	config HWE_BATTERY_ADC
+		int "Battery voltage ADC pin"
 		default 4
-
-	config HWE_BATTERY_ADC_B
-		int "Option B for battery voltage pin"
-		default 1
 
 	config HWE_BUTTON_1
 		int "Button 1 GPIO pin number"
 		default 0
-
-	config HWE_BUTTON_2
-		int "Button 2 GPIO pin number"
-		default 21
 
 endmenu
