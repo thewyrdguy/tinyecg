@@ -75,5 +75,11 @@ a different battery.
 - Waveshare module has reversed button positions compared to Lilygo module.
 - Waveshare and Lilygo have slightly different geometry; provided box
   design is for Lilygo. It has to be adjusted to fit Waveshare.
-- Waveshare has rather high deep sleep current, you'd want to add a
-  physical switch for the battery.
+- Only the "old" lilygo model has low deep sleep current, for the rest
+  you'd want to add a physical switch for the battery.
+
+| Board Model                           | Sleep Current |
+| ------------------------------------- | ------------- |
+| LilyGO T-Display-S3-AMOLED            | 0.07 mA       |
+| LilyGO T-Display-S3-AMOLED Plus       | 2 mA          |
+| WaveShare ESP32-S3 1.91inch AMOLED    | 5 mA          |
