@@ -9,6 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      binaries: ${{ steps.artifact-upload-step.outputs.artifact-id }}
+      version: ${{ steps.copy-binaries-step.outputs.version }}
+    strategy:
+      matrix:
+        PRESET: [lilygo-amoled, lilygo-amoled-plus, waveshare-amoled]
 
     steps:
     - name: Checkout repo
@@ -18,28 +24,62 @@ jobs:
     - name: esp-idf build
       uses: espressif/esp-idf-ci-action@v1
       with:
-        esp_idf_version: release-v6.0
+        esp_idf_version: release-v6.1
+        command: idf.py --preset ${{ matrix.PRESET }} build
         target: esp32s3
         path: '.'
-    - name: Pack binaries
-      run: >
-        mkdir dist dist/bootloader dist/partition_table;
-        cp bin-README dist/README;
-        cp build/bootloader/bootloader.bin dist/bootloader/;
-        cp build/partition_table/partition-table.bin dist/partition_table/;
-        cp build/tinyecg.bin build/flash_args dist/;
-        cd dist;
-        zip tinyecg-${{ github.ref_name }}.zip
-        README
-        flash_args
-        bootloader/bootloader.bin
-        tinyecg.bin
-        partition_table/partition-table.bin
+    - name: Copy binaries
+      id: copy-binaries-step
       shell: bash
-    - name: Upload build
       run: >
-        gh release create ${{ github.ref_name }}
-        dist/tinyecg-${{ github.ref_name }}.zip
+        mkdir -p dist dist/${{ matrix.PRESET }}
+        dist/${{ matrix.PRESET }}/bootloader
+        dist/${{ matrix.PRESET }}/partition_table;
+        cp bin-README dist/${{ matrix.PRESET }}/README;
+        cp build/${{ matrix.PRESET }}/bootloader/bootloader.bin
+        dist/${{ matrix.PRESET }}/bootloader/;
+        cp build/${{ matrix.PRESET }}/partition_table/partition-table.bin
+        dist/${{ matrix.PRESET }}/partition_table/;
+        cp build/${{ matrix.PRESET }}/tinyecg.bin
+        build/${{ matrix.PRESET }}/flash_args
+        dist/${{ matrix.PRESET }}/;
+        echo "version=${{ github.ref_name }}" >>"$GITHUB_OUTPUT"
+    - name: Save as atrifact
+      uses: actions/upload-artifact@v7
+      id: artifact-upload-step
+      with:
+        name: built-firmwares-${{ matrix.PRESET }}
+        path: dist/
+        retention-days: 1
+
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v5
+    - name: Restore artifact
+      uses: actions/download-artifact@v8
+      with:
+        pattern: built-firmwares-*
+        # artifact-ids: ${{ needs.build.outputs.binaries }}
+        merge-multiple: true
+        path: dist
+    - name: Upload build
+      shell: bash
+      run: >
+        ls -lR;
+        cd dist;
+        zip -r tinyecg-${{ needs.build.outputs.version }}.zip * ;
+        gh release create ${{ needs.build.outputs.version }}
+        tinyecg-${{ needs.build.outputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ github.TOKEN }}
+    - name: Remove artifacts
       shell: bash
+      run: >
+        gh api repos/$REPO_OWNER/$REPO_NAME/actions/artifacts/${{ needs.build.outputs.binaries }} -X DELETE
+      env:
+        GITHUB_TOKEN: ${{ github.TOKEN }}
