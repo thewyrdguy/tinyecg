@@ -77,9 +77,9 @@ jobs:
         tinyecg-${{ needs.build.outputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ github.TOKEN }}
-    - name: Remove artifacts
-      shell: bash
-      run: >
-        gh api repos/$REPO_OWNER/$REPO_NAME/actions/artifacts/${{ needs.build.outputs.binaries }} -X DELETE
-      env:
-        GITHUB_TOKEN: ${{ github.TOKEN }}
+#    - name: Remove artifacts
+#      shell: bash
+#      run: >
+#        gh api repos/$REPO_OWNER/$REPO_NAME/actions/artifacts/${{ needs.build.outputs.binaries }} -X DELETE
+#      env:
+#        GITHUB_TOKEN: ${{ github.TOKEN }}
